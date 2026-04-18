@@ -1,10 +1,22 @@
 const { getCoordinates } = require("../services/locationService");
 const { getRoute } = require("../services/routeService");
 const { getPlacesNearby } = require("../services/placeService");
+const { listTrips, saveTrip, toggleFavorite } = require("../services/tripStore");
+
+const DEFAULT_FILTERS = ["restaurant", "hotel", "fuel"];
+
+const normalizeFilters = (filters) => {
+  if (!Array.isArray(filters) || !filters.length) {
+    return DEFAULT_FILTERS;
+  }
+
+  return filters.filter((filter) => DEFAULT_FILTERS.includes(filter));
+};
 
 const planTrip = async (req, res, next) => {
   try {
-    const { start, destination } = req.body;
+    const { start, destination, filters = DEFAULT_FILTERS, maxPlaces = 10 } =
+      req.body;
 
     if (!start || !destination) {
       return res
@@ -12,53 +24,93 @@ const planTrip = async (req, res, next) => {
         .json({ message: "Start and destination are required" });
     }
 
-    // Step 1: Geocoding
     const startCoords = await getCoordinates(start);
     const destCoords = await getCoordinates(destination);
-
-    // Step 2: Route Fetching
     const route = await getRoute(startCoords, destCoords);
     const coordinates = route.geometry.coordinates;
-
-    // Step 3: Get Middle Point of Route
-    // Logic: coordinates is usually [[lon, lat], [lon, lat], ...]
     const points = [
-      coordinates[0], // start
-      coordinates[Math.floor(coordinates.length / 2)], // mid
-      coordinates[coordinates.length - 1], // end
+      coordinates[0],
+      coordinates[Math.floor(coordinates.length / 2)],
+      coordinates[coordinates.length - 1],
     ];
-    const [lon, lat] = points[1];
+    const placeFilters = normalizeFilters(filters);
+    const placesMap = new Map();
 
-    console.log(`📍 Midpoint identified at: ${lat}, ${lon}`);
-
-    // Step 4: Fetch Nearby Places (Midpoint Only)
-    let places = [];
-
-    for (let point of points) {
+    for (const point of points) {
       const [lon, lat] = point;
 
       try {
-        const nearby = await getPlacesNearby(lat, lon);
-        places.push(...nearby);
-      } catch (err) {
-        console.log("⚠️ Skipping one point");
+        const nearby = await getPlacesNearby(lat, lon, placeFilters);
+
+        nearby.forEach((place) => {
+          if (!placesMap.has(place.id)) {
+            placesMap.set(place.id, place);
+          }
+        });
+      } catch (error) {
+        console.log("Skipping one point");
       }
     }
 
-    // ✅ LIMIT RESULTS HERE
-    places = places.slice(0, 10);
+    const places = Array.from(placesMap.values()).slice(
+      0,
+      Math.min(Number(maxPlaces) || 10, 20)
+    );
 
-    // Step 5: Final Response
-    res.json({
+    const savedTrip = await saveTrip({
+      startQuery: start,
+      destinationQuery: destination,
+      start: startCoords,
+      destination: destCoords,
+      filters: placeFilters,
       distance: route.distance,
       duration: route.duration,
       geometry: route.geometry,
-      places: places,
+      places,
+    });
+
+    res.json({
+      tripId: savedTrip.id,
+      start: startCoords,
+      destination: destCoords,
+      distance: route.distance,
+      duration: route.duration,
+      geometry: route.geometry,
+      places,
+      filters: placeFilters,
     });
   } catch (error) {
-    console.error("❌ Trip Error:", error.response?.data || error.message);
+    console.error("Trip Error:", error.response?.data || error.message);
     next(error);
   }
 };
 
-module.exports = { planTrip };
+const getTripHistory = async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 6, 20);
+    const trips = await listTrips(limit);
+    res.json(trips);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateFavoriteTrip = async (req, res, next) => {
+  try {
+    const trip = await toggleFavorite(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    res.json(trip);
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getTripHistory,
+  planTrip,
+  updateFavoriteTrip,
+};

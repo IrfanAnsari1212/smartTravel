@@ -1,17 +1,20 @@
 import axios from "axios";
 
-const API_KEY = "pk.639c444e0133718e6739660af9def11d";
+import { API_BASE_URL } from "./api";
 
 export const searchPlaces = async (query) => {
-  if (!query) return [];
-
-  const url = `https://us1.locationiq.com/v1/autocomplete?key=${API_KEY}&q=${query}&limit=5&format=json`;
+  if (!query?.trim()) {
+    return [];
+  }
 
   try {
-    const res = await axios.get(url);
-    return res.data;
-  } catch (err) {
-    console.error(err);
+    const response = await axios.get(`${API_BASE_URL}/locations/search`, {
+      params: { q: query.trim() },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error(error);
     return [];
   }
 };

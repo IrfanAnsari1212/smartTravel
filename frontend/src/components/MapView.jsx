@@ -75,7 +75,7 @@ function FitBounds({ positions }) {
     if (positions.length > 0) {
       map.fitBounds(positions);
     }
-  }, [positions]);
+  }, [map, positions]);
 
   return null;
 }
