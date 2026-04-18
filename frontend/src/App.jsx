@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-
 import MapView from "./components/MapView";
 import { searchPlaces } from "./services/locationService";
 import {
@@ -34,6 +33,7 @@ function App() {
   const [route, setRoute] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+
   const [historyLoading, setHistoryLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [startSuggestions, setStartSuggestions] = useState([]);
@@ -46,7 +46,6 @@ function App() {
 
   const loadTripHistory = async () => {
     setHistoryLoading(true);
-
     try {
       const trips = await getTripHistory();
       setHistory(trips);
@@ -59,6 +58,11 @@ function App() {
 
   useEffect(() => {
     loadTripHistory();
+
+    // Cleanup function to clear timeouts if component unmounts
+    return () => {
+      Object.values(searchTimeouts.current).forEach(clearTimeout);
+    };
   }, []);
 
   const handleSearch = (value, setter, key) => {
@@ -70,8 +74,12 @@ function App() {
     }
 
     searchTimeouts.current[key] = setTimeout(async () => {
-      const results = await searchPlaces(value);
-      setter(results);
+      try {
+        const results = await searchPlaces(value);
+        setter(results);
+      } catch (error) {
+        console.error("Search failed:", error);
+      }
     }, 300);
   };
 
@@ -82,7 +90,6 @@ function App() {
           ? current
           : current.filter((item) => item !== filterId);
       }
-
       return [...current, filterId];
     });
   };
@@ -243,7 +250,6 @@ function App() {
             <div className="flex flex-wrap gap-3">
               {PLACE_FILTERS.map((filter) => {
                 const active = selectedFilters.includes(filter.id);
-
                 return (
                   <button
                     key={filter.id}
@@ -273,7 +279,6 @@ function App() {
           <div className="min-h-[480px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-900">
             <MapView route={route} />
           </div>
-
           <div className="grid gap-6">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-5">
               {!route ? (
@@ -353,7 +358,7 @@ function App() {
                             <a
                               href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
                             >
                               Open
