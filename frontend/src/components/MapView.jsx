@@ -1,4 +1,5 @@
 import {
+  Circle,
   MapContainer,
   Marker,
   Popup,
@@ -9,14 +10,22 @@ import {
 import { useEffect, useMemo } from "react";
 import "leaflet/dist/leaflet.css";
 
-function FitBounds({ positions }) {
+function FitBounds({ positions, currentLocation, shouldFollowUser }) {
   const map = useMap();
 
   useEffect(() => {
+    if (shouldFollowUser && currentLocation) {
+      map.flyTo([currentLocation.lat, currentLocation.lon], Math.max(map.getZoom(), 14), {
+        animate: true,
+        duration: 0.75,
+      });
+      return;
+    }
+
     if (positions.length > 0) {
       map.fitBounds(positions);
     }
-  }, [map, positions]);
+  }, [currentLocation, map, positions, shouldFollowUser]);
 
   return null;
 }
@@ -59,7 +68,7 @@ function buildOfflinePath(positions) {
   };
 }
 
-function OfflineRoutePreview({ route, positions, places }) {
+function OfflineRoutePreview({ route, positions, places, currentLocation, isNavigating }) {
   const { path, markers, viewBox } = useMemo(
     () => buildOfflinePath(positions),
     [positions]
@@ -79,7 +88,7 @@ function OfflineRoutePreview({ route, positions, places }) {
         <div>
           <p className="text-sm font-medium text-white">Offline Route View</p>
           <p className="text-xs text-slate-400">
-            App shell and saved route data are available without map tiles.
+            App shell and saved route data are available without live map tiles.
           </p>
         </div>
         <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
@@ -146,6 +155,16 @@ function OfflineRoutePreview({ route, positions, places }) {
               );
             })}
           </svg>
+
+          {isNavigating && currentLocation && (
+            <div className="absolute bottom-6 left-6 rounded-2xl border border-cyan-400/20 bg-slate-950/85 px-4 py-3 text-sm text-slate-200">
+              <p className="font-medium text-cyan-100">Live Trip Active</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Current location: {currentLocation.lat.toFixed(5)},{" "}
+                {currentLocation.lon.toFixed(5)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -172,14 +191,28 @@ function CachedTileBadge({ isOffline, hasOfflineMap }) {
   return null;
 }
 
-export default function MapView({ route, isOffline, hasOfflineMap }) {
+export default function MapView({
+  route,
+  isOffline,
+  hasOfflineMap,
+  currentLocation,
+  isNavigating,
+}) {
   const positions = route
     ? route.geometry.coordinates.map((coord) => [coord[1], coord[0]])
     : [];
   const places = route?.places || [];
 
   if (isOffline && !hasOfflineMap) {
-    return <OfflineRoutePreview route={route} positions={positions} places={places} />;
+    return (
+      <OfflineRoutePreview
+        route={route}
+        positions={positions}
+        places={places}
+        currentLocation={currentLocation}
+        isNavigating={isNavigating}
+      />
+    );
   }
 
   return (
@@ -191,7 +224,11 @@ export default function MapView({ route, isOffline, hasOfflineMap }) {
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <FitBounds positions={positions} />
+        <FitBounds
+          positions={positions}
+          currentLocation={currentLocation}
+          shouldFollowUser={isNavigating}
+        />
         {positions.length > 0 && <Polyline positions={positions} />}
         {places.map((place, index) => (
           <Marker key={place.id || index} position={[place.lat, place.lon]}>
@@ -200,6 +237,28 @@ export default function MapView({ route, isOffline, hasOfflineMap }) {
             </Popup>
           </Marker>
         ))}
+        {currentLocation && (
+          <>
+            <Circle
+              center={[currentLocation.lat, currentLocation.lon]}
+              radius={Math.max(currentLocation.accuracy || 20, 20)}
+              pathOptions={{
+                color: "#22d3ee",
+                fillColor: "#22d3ee",
+                fillOpacity: 0.12,
+                weight: 1,
+              }}
+            />
+            <Marker position={[currentLocation.lat, currentLocation.lon]}>
+              <Popup>
+                <div className="space-y-1">
+                  <p className="font-semibold">Your Live Location</p>
+                  <p>Accuracy: {Math.round(currentLocation.accuracy || 0)} m</p>
+                </div>
+              </Popup>
+            </Marker>
+          </>
+        )}
       </MapContainer>
     </div>
   );

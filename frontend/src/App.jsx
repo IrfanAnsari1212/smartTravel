@@ -31,6 +31,26 @@ const PLACE_FILTERS = [
 const ALL_FILTER_IDS = PLACE_FILTERS.map((filter) => filter.id);
 const formatDistance = (distance) => `${(distance / 1000).toFixed(1)} km`;
 const formatDuration = (duration) => `${(duration / 3600).toFixed(1)} hrs`;
+const formatSpeed = (speed) =>
+  speed || speed === 0 ? `${(speed * 3.6).toFixed(1)} km/h` : "Waiting...";
+
+const getDistanceBetweenPoints = (origin, target) => {
+  if (!origin || !target) {
+    return null;
+  }
+
+  const toRadians = (value) => (value * Math.PI) / 180;
+  const earthRadius = 6371000;
+  const latDelta = toRadians(target.lat - origin.lat);
+  const lonDelta = toRadians(target.lon - origin.lon);
+  const originLat = toRadians(origin.lat);
+  const targetLat = toRadians(target.lat);
+  const haversine =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(originLat) * Math.cos(targetLat) * Math.sin(lonDelta / 2) ** 2;
+
+  return 2 * earthRadius * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+};
 
 const tripFromHistory = (trip) => ({
   tripId: trip.id,
@@ -76,9 +96,16 @@ function App() {
     total: 0,
     status: "idle",
   });
+  const [navigationState, setNavigationState] = useState({
+    isActive: false,
+    status: "idle",
+    currentLocation: null,
+    error: "",
+  });
 
   const searchTimeouts = useRef({});
   const fileInputRef = useRef(null);
+  const locationWatchRef = useRef(null);
 
   const syncOfflineTrips = () => {
     setOfflineTrips(listOfflineTrips());
@@ -119,6 +146,14 @@ function App() {
       return null;
     }
   }, [currentOfflinePack]);
+
+  const liveDistanceToDestination = useMemo(() => {
+    if (!navigationState.currentLocation || !route?.destination) {
+      return null;
+    }
+
+    return getDistanceBetweenPoints(navigationState.currentLocation, route.destination);
+  }, [navigationState.currentLocation, route]);
 
   const loadTripHistory = async () => {
     if (!isOnline) {
@@ -178,6 +213,14 @@ function App() {
     refreshHistoryForNetworkState();
   }, [isOnline]);
 
+  useEffect(() => {
+    return () => {
+      if (locationWatchRef.current !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(locationWatchRef.current);
+      }
+    };
+  }, []);
+
   const handleSearch = (value, setter, key) => {
     clearTimeout(searchTimeouts.current[key]);
 
@@ -227,6 +270,17 @@ function App() {
         filters: selectedFilters,
       });
 
+      if (locationWatchRef.current !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(locationWatchRef.current);
+        locationWatchRef.current = null;
+      }
+
+      setNavigationState({
+        isActive: false,
+        status: "idle",
+        currentLocation: null,
+        error: "",
+      });
       setRoute(plannedTrip);
       await loadTripHistory();
     } catch (error) {
@@ -240,6 +294,7 @@ function App() {
   };
 
   const applyHistoryTrip = (trip) => {
+    stopTrip("idle", "");
     setStart(trip.startQuery);
     setDestination(trip.destinationQuery);
     setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
@@ -250,6 +305,7 @@ function App() {
   };
 
   const openOfflineTrip = (trip) => {
+    stopTrip("idle", "");
     setStart(trip.startQuery);
     setDestination(trip.destinationQuery);
     setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
@@ -257,6 +313,72 @@ function App() {
     setStartSuggestions([]);
     setDestSuggestions([]);
     setErrorMessage("");
+  };
+
+  const stopTrip = (status = "idle", error = "") => {
+    if (locationWatchRef.current !== null && "geolocation" in navigator) {
+      navigator.geolocation.clearWatch(locationWatchRef.current);
+      locationWatchRef.current = null;
+    }
+
+    setNavigationState((current) => ({
+      ...current,
+      isActive: false,
+      status,
+      error,
+    }));
+  };
+
+  const startTrip = () => {
+    if (!route) {
+      setErrorMessage("Plan a route before starting a trip.");
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      setErrorMessage("Geolocation is not supported on this device.");
+      return;
+    }
+
+    if (locationWatchRef.current !== null) {
+      navigator.geolocation.clearWatch(locationWatchRef.current);
+      locationWatchRef.current = null;
+    }
+
+    setErrorMessage("");
+    setNavigationState((current) => ({
+      ...current,
+      isActive: true,
+      status: "requesting",
+      error: "",
+    }));
+
+    locationWatchRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setNavigationState({
+          isActive: true,
+          status: "tracking",
+          error: "",
+          currentLocation: {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            speed: position.coords.speed,
+            heading: position.coords.heading,
+            timestamp: position.timestamp,
+          },
+        });
+      },
+      (error) => {
+        stopTrip("error", error.message || "Unable to access your location.");
+        setErrorMessage(error.message || "Unable to access your location.");
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 10000,
+      }
+    );
   };
 
   const handleFavoriteToggle = async (tripId) => {
@@ -565,6 +687,8 @@ function App() {
               route={route}
               isOffline={!isOnline}
               hasOfflineMap={Boolean(currentOfflineMapStatus)}
+              currentLocation={navigationState.currentLocation}
+              isNavigating={navigationState.isActive}
             />
           </div>
 
@@ -608,6 +732,90 @@ function App() {
                         {formatDuration(route.duration)}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-200">
+                          Live Trip Mode
+                        </p>
+                        <p className="mt-2 text-sm text-slate-400">
+                          Start navigation to follow your real-time location on the
+                          map during the journey.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {!navigationState.isActive ? (
+                          <button
+                            type="button"
+                            onClick={startTrip}
+                            className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-300"
+                          >
+                            Start Trip
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => stopTrip("idle", "")}
+                            className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100"
+                          >
+                            Stop Trip
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl bg-slate-900 p-4">
+                        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                          Status
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-white">
+                          {navigationState.status === "tracking"
+                            ? "Tracking live"
+                            : navigationState.status === "requesting"
+                              ? "Requesting access"
+                              : navigationState.status === "error"
+                                ? "Location error"
+                                : "Ready"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-900 p-4">
+                        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                          Speed
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-white">
+                          {formatSpeed(navigationState.currentLocation?.speed)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-900 p-4">
+                        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                          Accuracy
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-white">
+                          {navigationState.currentLocation
+                            ? `${Math.round(navigationState.currentLocation.accuracy)} m`
+                            : "Waiting..."}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-900 p-4">
+                        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                          Destination Range
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-white">
+                          {liveDistanceToDestination
+                            ? formatDistance(liveDistanceToDestination)
+                            : "Waiting..."}
+                        </p>
+                      </div>
+                    </div>
+
+                    {navigationState.error && (
+                      <p className="mt-3 text-sm text-rose-200">
+                        {navigationState.error}
+                      </p>
+                    )}
                   </div>
 
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
