@@ -4,6 +4,13 @@ const { getPlacesNearby } = require("../services/placeService");
 const { listTrips, saveTrip, toggleFavorite } = require("../services/tripStore");
 
 const DEFAULT_FILTERS = ["restaurant", "hotel", "fuel"];
+const EMERGENCY_FILTERS = ["fuel", "hotel", "hospital", "mechanic"];
+const EMPTY_EMERGENCY_SERVICES = {
+  fuel: [],
+  hotel: [],
+  hospital: [],
+  mechanic: [],
+};
 
 const normalizeFilters = (filters) => {
   if (!Array.isArray(filters) || !filters.length) {
@@ -12,6 +19,31 @@ const normalizeFilters = (filters) => {
 
   return filters.filter((filter) => DEFAULT_FILTERS.includes(filter));
 };
+
+const createEmergencyServiceMaps = () => ({
+  fuel: new Map(),
+  hotel: new Map(),
+  hospital: new Map(),
+  mechanic: new Map(),
+});
+
+const addEmergencyPlaces = (serviceMaps, places) => {
+  places.forEach((place) => {
+    const targetMap = serviceMaps[place.category];
+
+    if (targetMap && !targetMap.has(place.id)) {
+      targetMap.set(place.id, place);
+    }
+  });
+};
+
+const finalizeEmergencyServices = (serviceMaps, limit = 4) =>
+  Object.fromEntries(
+    Object.entries(serviceMaps).map(([category, placesMap]) => [
+      category,
+      Array.from(placesMap.values()).slice(0, limit),
+    ])
+  );
 
 const planTrip = async (req, res, next) => {
   try {
@@ -35,18 +67,24 @@ const planTrip = async (req, res, next) => {
     ];
     const placeFilters = normalizeFilters(filters);
     const placesMap = new Map();
+    const emergencyServiceMaps = createEmergencyServiceMaps();
 
     for (const point of points) {
       const [lon, lat] = point;
 
       try {
-        const nearby = await getPlacesNearby(lat, lon, placeFilters);
+        const [nearby, nearbyEmergency] = await Promise.all([
+          getPlacesNearby(lat, lon, placeFilters),
+          getPlacesNearby(lat, lon, EMERGENCY_FILTERS),
+        ]);
 
         nearby.forEach((place) => {
           if (!placesMap.has(place.id)) {
             placesMap.set(place.id, place);
           }
         });
+
+        addEmergencyPlaces(emergencyServiceMaps, nearbyEmergency);
       } catch (error) {
         console.log("Skipping one point");
       }
@@ -56,6 +94,7 @@ const planTrip = async (req, res, next) => {
       0,
       Math.min(Number(maxPlaces) || 10, 20)
     );
+    const emergencyServices = finalizeEmergencyServices(emergencyServiceMaps);
 
     const savedTrip = await saveTrip({
       startQuery: start,
@@ -67,6 +106,7 @@ const planTrip = async (req, res, next) => {
       duration: route.duration,
       geometry: route.geometry,
       places,
+      emergencyServices,
     });
 
     res.json({
@@ -77,6 +117,7 @@ const planTrip = async (req, res, next) => {
       duration: route.duration,
       geometry: route.geometry,
       places,
+      emergencyServices: savedTrip.emergencyServices || EMPTY_EMERGENCY_SERVICES,
       filters: placeFilters,
     });
   } catch (error) {

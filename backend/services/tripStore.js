@@ -22,6 +22,7 @@ const toTripResponse = (trip) => {
     duration: source.duration,
     geometry: source.geometry,
     places: source.places || [],
+    emergencyServices: source.emergencyServices || {},
     favorite: Boolean(source.favorite),
     createdAt: source.createdAt,
   };

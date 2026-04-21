@@ -6,6 +6,8 @@ const overpassFragments = {
   restaurant: 'node["amenity"="restaurant"]',
   hotel: 'node["tourism"="hotel"]',
   fuel: 'node["amenity"="fuel"]',
+  hospital: 'node["amenity"="hospital"]',
+  mechanic: 'node["shop"="car_repair"]',
 };
 
 const formatTagValue = (value) =>
@@ -56,6 +58,14 @@ const getPlaceCategory = (tags = {}) => {
 
   if (tags.amenity === "fuel") {
     return "fuel";
+  }
+
+  if (tags.amenity === "hospital") {
+    return "hospital";
+  }
+
+  if (tags.shop === "car_repair") {
+    return "mechanic";
   }
 
   return "place";

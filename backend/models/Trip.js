@@ -47,6 +47,12 @@ const tripSchema = new mongoose.Schema(
       },
     },
     places: { type: [placeSchema], default: [] },
+    emergencyServices: {
+      fuel: { type: [placeSchema], default: [] },
+      hotel: { type: [placeSchema], default: [] },
+      hospital: { type: [placeSchema], default: [] },
+      mechanic: { type: [placeSchema], default: [] },
+    },
     favorite: { type: Boolean, default: false },
   },
   {

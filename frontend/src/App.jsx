@@ -28,6 +28,12 @@ const PLACE_FILTERS = [
   { id: "hotel", label: "Hotels" },
   { id: "fuel", label: "Fuel" },
 ];
+const EMERGENCY_SERVICE_CONFIG = [
+  { id: "fuel", label: "Fuel", emptyLabel: "No fuel stop saved" },
+  { id: "hotel", label: "Hotel", emptyLabel: "No hotel saved" },
+  { id: "hospital", label: "Hospital", emptyLabel: "No hospital saved" },
+  { id: "mechanic", label: "Mechanic", emptyLabel: "No mechanic saved" },
+];
 
 const ALL_FILTER_IDS = PLACE_FILTERS.map((filter) => filter.id);
 const formatDistance = (distance) => `${(distance / 1000).toFixed(1)} km`;
@@ -48,6 +54,31 @@ const createEmptyMapVerification = () => ({
   supportsCacheStorage: typeof window !== "undefined" && "caches" in window,
   isChecking: false,
 });
+const normalizeEmergencyServices = (services = {}) => ({
+  fuel: Array.isArray(services.fuel) ? services.fuel : [],
+  hotel: Array.isArray(services.hotel) ? services.hotel : [],
+  hospital: Array.isArray(services.hospital) ? services.hospital : [],
+  mechanic: Array.isArray(services.mechanic) ? services.mechanic : [],
+});
+const getNearestPlace = (places, referencePoint) => {
+  if (!places.length) {
+    return null;
+  }
+
+  if (!referencePoint) {
+    return {
+      ...places[0],
+      distanceFromReference: null,
+    };
+  }
+
+  return places
+    .map((place) => ({
+      ...place,
+      distanceFromReference: getDistanceBetweenPoints(referencePoint, place),
+    }))
+    .sort((left, right) => left.distanceFromReference - right.distanceFromReference)[0];
+};
 
 const getDistanceBetweenPoints = (origin, target) => {
   if (!origin || !target) {
@@ -75,6 +106,7 @@ const tripFromHistory = (trip) => ({
   duration: trip.duration,
   geometry: trip.geometry,
   places: trip.places,
+  emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
   filters: trip.filters,
 });
 
@@ -86,6 +118,7 @@ const routeFromOfflineTrip = (trip) => ({
   duration: trip.duration,
   geometry: trip.geometry,
   places: trip.places,
+  emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
   filters: trip.filters,
 });
 
@@ -173,6 +206,30 @@ function App() {
 
     return getDistanceBetweenPoints(navigationState.currentLocation, route.destination);
   }, [navigationState.currentLocation, route]);
+  const emergencyReferencePoint = navigationState.currentLocation || route?.start || null;
+  const emergencyReferenceLabel = navigationState.currentLocation
+    ? "live position"
+    : "trip start";
+  const emergencyFallbacks = useMemo(() => {
+    if (!route) {
+      return [];
+    }
+
+    const services = normalizeEmergencyServices(route.emergencyServices);
+
+    return EMERGENCY_SERVICE_CONFIG.map((service) => {
+      const places = services[service.id] || [];
+
+      return {
+        ...service,
+        count: places.length,
+        nearestPlace: getNearestPlace(places, emergencyReferencePoint),
+      };
+    });
+  }, [emergencyReferencePoint, route]);
+  const emergencyFallbackCount = emergencyFallbacks.filter(
+    (service) => service.nearestPlace
+  ).length;
 
   const loadTripHistory = async () => {
     if (!isOnline) {
@@ -632,6 +689,11 @@ function App() {
           ready: Boolean(route.geometry?.coordinates?.length),
           detail: `${route.places?.length || 0} saved stops stay bundled with the route pack.`,
         },
+        {
+          label: "Emergency fallbacks saved",
+          ready: emergencyFallbackCount === EMERGENCY_SERVICE_CONFIG.length,
+          detail: `${emergencyFallbackCount}/${EMERGENCY_SERVICE_CONFIG.length} emergency categories have offline fallbacks.`,
+        },
       ]
     : [];
   const offlineReadyCount = offlineReadinessItems.filter((item) => item.ready).length;
@@ -946,6 +1008,107 @@ function App() {
                         {navigationState.error}
                       </p>
                     )}
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-200">
+                          Emergency fallback
+                        </p>
+                        <p className="mt-2 text-sm text-slate-400">
+                          Offline quick-access to the nearest saved fuel, hotel,
+                          hospital, and mechanic from your {emergencyReferenceLabel}.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-rose-400/10 px-3 py-1 text-xs text-rose-100">
+                        {emergencyFallbackCount}/{EMERGENCY_SERVICE_CONFIG.length} ready
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {emergencyFallbacks.map((service) => {
+                        const place = service.nearestPlace;
+
+                        return (
+                          <div
+                            key={service.id}
+                            className="rounded-2xl border border-slate-800 bg-slate-900 p-4"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium text-white">
+                                  {service.label}
+                                </p>
+                                <p className="mt-1 text-xs uppercase tracking-[0.25em] text-slate-500">
+                                  {service.count} saved
+                                </p>
+                              </div>
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs ${
+                                  place
+                                    ? "bg-emerald-400/15 text-emerald-100"
+                                    : "bg-slate-800 text-slate-300"
+                                }`}
+                              >
+                                {place ? "Available" : "Missing"}
+                              </span>
+                            </div>
+
+                            {place ? (
+                              <>
+                                <p className="mt-4 font-medium text-slate-100">
+                                  {place.name}
+                                </p>
+                                <p className="mt-2 text-sm text-slate-400">
+                                  {place.address || "Address details unavailable"}
+                                </p>
+                                <p className="mt-2 text-sm text-cyan-100">
+                                  {place.distanceFromReference !== null &&
+                                  place.distanceFromReference !== undefined
+                                    ? `${formatDistance(place.distanceFromReference)} away`
+                                    : "Saved to this route pack"}
+                                </p>
+
+                                <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                                  {place.phone && (
+                                    <a
+                                      href={`tel:${place.phone}`}
+                                      className="text-cyan-200 transition hover:text-cyan-100"
+                                    >
+                                      Call
+                                    </a>
+                                  )}
+                                  {place.website && (
+                                    <a
+                                      href={normalizeExternalUrl(place.website)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-cyan-200 transition hover:text-cyan-100"
+                                    >
+                                      Website
+                                    </a>
+                                  )}
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-cyan-200 transition hover:text-cyan-100"
+                                  >
+                                    Open
+                                  </a>
+                                </div>
+                              </>
+                            ) : (
+                              <p className="mt-4 text-sm text-slate-400">
+                                {service.emptyLabel}. Plan the route online again to
+                                refresh the safety pack.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">

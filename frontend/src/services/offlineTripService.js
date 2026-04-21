@@ -30,6 +30,13 @@ const slugify = (value) =>
 const makeOfflineId = (startQuery, destinationQuery) =>
   `offline-${slugify(startQuery)}-${slugify(destinationQuery)}-${Date.now()}`;
 
+const normalizeEmergencyServices = (services = {}) => ({
+  fuel: Array.isArray(services.fuel) ? services.fuel : [],
+  hotel: Array.isArray(services.hotel) ? services.hotel : [],
+  hospital: Array.isArray(services.hospital) ? services.hospital : [],
+  mechanic: Array.isArray(services.mechanic) ? services.mechanic : [],
+});
+
 const validateTripPackage = (trip) => {
   if (!trip || trip.type !== PACKAGE_TYPE) {
     throw new Error("This file is not a valid Travel Platform offline trip pack.");
@@ -39,7 +46,10 @@ const validateTripPackage = (trip) => {
     throw new Error("Offline trip pack is missing route data.");
   }
 
-  return trip;
+  return {
+    ...trip,
+    emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
+  };
 };
 
 export const createOfflineTripPack = ({ route, startQuery, destinationQuery }) =>
@@ -58,6 +68,7 @@ export const createOfflineTripPack = ({ route, startQuery, destinationQuery }) =
     duration: route.duration,
     geometry: route.geometry,
     places: route.places || [],
+    emergencyServices: normalizeEmergencyServices(route.emergencyServices),
     savedAt: new Date().toISOString(),
   });
 
