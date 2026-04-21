@@ -54,6 +54,8 @@ const createEmptyMapVerification = () => ({
   supportsCacheStorage: typeof window !== "undefined" && "caches" in window,
   isChecking: false,
 });
+const buildMapsSearchUrl = (place) =>
+  `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`;
 const normalizeEmergencyServices = (services = {}) => ({
   fuel: Array.isArray(services.fuel) ? services.fuel : [],
   hotel: Array.isArray(services.hotel) ? services.hotel : [],
@@ -144,6 +146,7 @@ function App() {
     total: 0,
     status: "idle",
   });
+  const [focusedSafetyPlace, setFocusedSafetyPlace] = useState(null);
   const [currentOfflineMapVerification, setCurrentOfflineMapVerification] = useState(
     createEmptyMapVerification
   );
@@ -230,6 +233,28 @@ function App() {
   const emergencyFallbackCount = emergencyFallbacks.filter(
     (service) => service.nearestPlace
   ).length;
+  const nearestEmergencyOption = useMemo(() => {
+    const availableServices = emergencyFallbacks.filter((service) => service.nearestPlace);
+
+    if (!availableServices.length) {
+      return null;
+    }
+
+    return [...availableServices].sort((left, right) => {
+      const leftDistance = left.nearestPlace.distanceFromReference;
+      const rightDistance = right.nearestPlace.distanceFromReference;
+
+      if (leftDistance === null || leftDistance === undefined) {
+        return 1;
+      }
+
+      if (rightDistance === null || rightDistance === undefined) {
+        return -1;
+      }
+
+      return leftDistance - rightDistance;
+    })[0];
+  }, [emergencyFallbacks]);
 
   const loadTripHistory = async () => {
     if (!isOnline) {
@@ -432,6 +457,7 @@ function App() {
         currentLocation: null,
         error: "",
       });
+      setFocusedSafetyPlace(null);
       clearSearchState("start", setStartSuggestions);
       clearSearchState("destination", setDestSuggestions);
       setRoute(plannedTrip);
@@ -452,6 +478,7 @@ function App() {
     setDestination(trip.destinationQuery);
     setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
     setRoute(tripFromHistory(trip));
+    setFocusedSafetyPlace(null);
     clearSearchState("start", setStartSuggestions);
     clearSearchState("destination", setDestSuggestions);
     setErrorMessage("");
@@ -463,6 +490,7 @@ function App() {
     setDestination(trip.destinationQuery);
     setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
     setRoute(routeFromOfflineTrip(trip));
+    setFocusedSafetyPlace(null);
     clearSearchState("start", setStartSuggestions);
     clearSearchState("destination", setDestSuggestions);
     setErrorMessage("");
@@ -656,6 +684,12 @@ function App() {
       console.error(error);
       setErrorMessage(error.message || "Unable to remove this offline map pack.");
     }
+  };
+  const focusSafetyPlace = (place) => {
+    setFocusedSafetyPlace(place);
+  };
+  const openSafetyPlace = (place) => {
+    window.open(buildMapsSearchUrl(place), "_blank", "noopener,noreferrer");
   };
 
   const isCurrentMapDownloading =
@@ -881,6 +915,7 @@ function App() {
               hasOfflineMap={currentOfflineMapVerification.isVerified}
               currentLocation={navigationState.currentLocation}
               isNavigating={navigationState.isActive}
+              focusedPlace={focusedSafetyPlace}
             />
           </div>
 
@@ -1026,6 +1061,60 @@ function App() {
                       </span>
                     </div>
 
+                    {nearestEmergencyOption && (
+                      <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/5 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-rose-100">
+                              Nearest now: {nearestEmergencyOption.label}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-300">
+                              {nearestEmergencyOption.nearestPlace.name}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-400">
+                              {nearestEmergencyOption.nearestPlace.distanceFromReference !==
+                                null &&
+                              nearestEmergencyOption.nearestPlace.distanceFromReference !==
+                                undefined
+                                ? `${formatDistance(
+                                    nearestEmergencyOption.nearestPlace
+                                      .distanceFromReference
+                                  )} from your ${emergencyReferenceLabel}`
+                                : "Saved in this route pack"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                focusSafetyPlace(nearestEmergencyOption.nearestPlace)
+                              }
+                              className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100"
+                            >
+                              Focus Nearest
+                            </button>
+                            {nearestEmergencyOption.nearestPlace.phone && (
+                              <a
+                                href={`tel:${nearestEmergencyOption.nearestPlace.phone}`}
+                                className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100"
+                              >
+                                Call Nearest
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openSafetyPlace(nearestEmergencyOption.nearestPlace)
+                              }
+                              className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100"
+                            >
+                              Open Nearest
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {emergencyFallbacks.map((service) => {
                         const place = service.nearestPlace;
@@ -1033,7 +1122,11 @@ function App() {
                         return (
                           <div
                             key={service.id}
-                            className="rounded-2xl border border-slate-800 bg-slate-900 p-4"
+                            className={`rounded-2xl border bg-slate-900 p-4 ${
+                              place && focusedSafetyPlace?.id === place.id
+                                ? "border-rose-300/60"
+                                : "border-slate-800"
+                            }`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div>
@@ -1071,6 +1164,13 @@ function App() {
                                 </p>
 
                                 <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                                  <button
+                                    type="button"
+                                    onClick={() => focusSafetyPlace(place)}
+                                    className="text-cyan-200 transition hover:text-cyan-100"
+                                  >
+                                    Focus
+                                  </button>
                                   {place.phone && (
                                     <a
                                       href={`tel:${place.phone}`}
@@ -1089,14 +1189,13 @@ function App() {
                                       Website
                                     </a>
                                   )}
-                                  <a
-                                    href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`}
-                                    target="_blank"
-                                    rel="noreferrer"
+                                  <button
+                                    type="button"
+                                    onClick={() => openSafetyPlace(place)}
                                     className="text-cyan-200 transition hover:text-cyan-100"
                                   >
                                     Open
-                                  </a>
+                                  </button>
                                 </div>
                               </>
                             ) : (

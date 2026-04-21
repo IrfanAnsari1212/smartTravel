@@ -10,10 +10,18 @@ import {
 import { useEffect, useMemo } from "react";
 import "leaflet/dist/leaflet.css";
 
-function FitBounds({ positions, currentLocation, shouldFollowUser }) {
+function FitBounds({ positions, currentLocation, shouldFollowUser, focusedPlace }) {
   const map = useMap();
 
   useEffect(() => {
+    if (focusedPlace) {
+      map.flyTo([focusedPlace.lat, focusedPlace.lon], Math.max(map.getZoom(), 14), {
+        animate: true,
+        duration: 0.75,
+      });
+      return;
+    }
+
     if (shouldFollowUser && currentLocation) {
       map.flyTo([currentLocation.lat, currentLocation.lon], Math.max(map.getZoom(), 14), {
         animate: true,
@@ -25,7 +33,7 @@ function FitBounds({ positions, currentLocation, shouldFollowUser }) {
     if (positions.length > 0) {
       map.fitBounds(positions);
     }
-  }, [currentLocation, map, positions, shouldFollowUser]);
+  }, [currentLocation, focusedPlace, map, positions, shouldFollowUser]);
 
   return null;
 }
@@ -197,6 +205,7 @@ export default function MapView({
   hasOfflineMap,
   currentLocation,
   isNavigating,
+  focusedPlace,
 }) {
   const positions = route
     ? route.geometry.coordinates.map((coord) => [coord[1], coord[0]])
@@ -228,6 +237,7 @@ export default function MapView({
           positions={positions}
           currentLocation={currentLocation}
           shouldFollowUser={isNavigating}
+          focusedPlace={focusedPlace}
         />
         {positions.length > 0 && <Polyline positions={positions} />}
         {places.map((place, index) => (
@@ -258,6 +268,18 @@ export default function MapView({
               </Popup>
             </Marker>
           </>
+        )}
+        {focusedPlace && (
+          <Circle
+            center={[focusedPlace.lat, focusedPlace.lon]}
+            radius={90}
+            pathOptions={{
+              color: "#fb7185",
+              fillColor: "#fb7185",
+              fillOpacity: 0.15,
+              weight: 2,
+            }}
+          />
         )}
       </MapContainer>
     </div>
