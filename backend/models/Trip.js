@@ -17,6 +17,12 @@ const placeSchema = new mongoose.Schema(
     lat: Number,
     lon: Number,
     address: String,
+    brand: String,
+    cuisine: String,
+    openingHours: String,
+    phone: String,
+    website: String,
+    highlights: { type: [String], default: [] },
   },
   { _id: false }
 );

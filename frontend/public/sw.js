@@ -14,7 +14,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== APP_CACHE)
+          .filter((key) => key !== APP_CACHE && key !== TILE_CACHE)
           .map((key) => caches.delete(key))
       )
     )

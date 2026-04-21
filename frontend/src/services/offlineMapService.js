@@ -133,6 +133,45 @@ const requireCacheStorage = () => {
 
 export const listOfflineMapPacks = () => sortMapPacks(readStoredMapPacks());
 
+export const getOfflineMapPackVerification = async (tripId) => {
+  const metadata = readStoredMapPacks().find((pack) => pack.id === tripId);
+
+  if (!metadata) {
+    return {
+      metadata: null,
+      cachedCount: 0,
+      totalCount: 0,
+      isVerified: false,
+      supportsCacheStorage: "caches" in window,
+    };
+  }
+
+  if (!("caches" in window)) {
+    return {
+      metadata,
+      cachedCount: 0,
+      totalCount: metadata.urls?.length || 0,
+      isVerified: false,
+      supportsCacheStorage: false,
+    };
+  }
+
+  const cache = await window.caches.open(TILE_CACHE_NAME);
+  const cachedChecks = await Promise.all(
+    (metadata.urls || []).map((url) => cache.match(new Request(url, { mode: "no-cors" })))
+  );
+  const cachedCount = cachedChecks.filter(Boolean).length;
+  const totalCount = metadata.urls?.length || 0;
+
+  return {
+    metadata,
+    cachedCount,
+    totalCount,
+    isVerified: totalCount > 0 && cachedCount === totalCount,
+    supportsCacheStorage: true,
+  };
+};
+
 export const getOfflineMapPreview = (trip, presetId = "standard") => {
   const { preset, tiles } = collectTilesForRoute(trip, presetId);
 

@@ -4,6 +4,7 @@ import MapView from "./components/MapView";
 import { searchPlaces } from "./services/locationService";
 import {
   downloadOfflineMapPack,
+  getOfflineMapPackVerification,
   getOfflineMapPreview,
   listOfflineMapPacks,
   removeOfflineMapPack,
@@ -33,6 +34,20 @@ const formatDistance = (distance) => `${(distance / 1000).toFixed(1)} km`;
 const formatDuration = (duration) => `${(duration / 3600).toFixed(1)} hrs`;
 const formatSpeed = (speed) =>
   speed || speed === 0 ? `${(speed * 3.6).toFixed(1)} km/h` : "Waiting...";
+const formatFilterList = (filters = []) =>
+  filters
+    .map((filterId) => PLACE_FILTERS.find((filter) => filter.id === filterId)?.label || filterId)
+    .join(", ");
+const normalizeExternalUrl = (value) =>
+  value ? (/^https?:\/\//i.test(value) ? value : `https://${value}`) : "";
+const createEmptyMapVerification = () => ({
+  metadata: null,
+  cachedCount: 0,
+  totalCount: 0,
+  isVerified: false,
+  supportsCacheStorage: typeof window !== "undefined" && "caches" in window,
+  isChecking: false,
+});
 
 const getDistanceBetweenPoints = (origin, target) => {
   if (!origin || !target) {
@@ -96,6 +111,9 @@ function App() {
     total: 0,
     status: "idle",
   });
+  const [currentOfflineMapVerification, setCurrentOfflineMapVerification] = useState(
+    createEmptyMapVerification
+  );
   const [navigationState, setNavigationState] = useState({
     isActive: false,
     status: "idle",
@@ -104,6 +122,7 @@ function App() {
   });
 
   const searchTimeouts = useRef({});
+  const searchRequestIds = useRef({});
   const fileInputRef = useRef(null);
   const locationWatchRef = useRef(null);
 
@@ -127,14 +146,6 @@ function App() {
     });
   }, [destination, route, start]);
 
-  const currentOfflineMapStatus = useMemo(() => {
-    if (!currentOfflinePack) {
-      return null;
-    }
-
-    return offlineMapPacks.find((pack) => pack.id === currentOfflinePack.id) || null;
-  }, [currentOfflinePack, offlineMapPacks]);
-
   const currentOfflineMapPreview = useMemo(() => {
     if (!currentOfflinePack) {
       return null;
@@ -146,6 +157,14 @@ function App() {
       return null;
     }
   }, [currentOfflinePack]);
+  const currentOfflineMapStatus = currentOfflineMapVerification.metadata;
+  const currentTripSavedOffline = useMemo(
+    () =>
+      currentOfflinePack
+        ? offlineTrips.some((trip) => trip.id === currentOfflinePack.id)
+        : false,
+    [currentOfflinePack, offlineTrips]
+  );
 
   const liveDistanceToDestination = useMemo(() => {
     if (!navigationState.currentLocation || !route?.destination) {
@@ -214,15 +233,87 @@ function App() {
   }, [isOnline]);
 
   useEffect(() => {
+    let isCancelled = false;
+
+    const verifyCurrentOfflineMap = async () => {
+      if (!currentOfflinePack) {
+        if (!isCancelled) {
+          setCurrentOfflineMapVerification(createEmptyMapVerification());
+        }
+        return;
+      }
+
+      const metadata =
+        offlineMapPacks.find((pack) => pack.id === currentOfflinePack.id) || null;
+
+      if (!metadata) {
+        if (!isCancelled) {
+          setCurrentOfflineMapVerification(createEmptyMapVerification());
+        }
+        return;
+      }
+
+      setCurrentOfflineMapVerification((current) => ({
+        ...current,
+        metadata,
+        totalCount: metadata.urls?.length || 0,
+        isChecking: true,
+      }));
+
+      try {
+        const verification = await getOfflineMapPackVerification(metadata.id);
+
+        if (!isCancelled) {
+          setCurrentOfflineMapVerification({
+            ...verification,
+            isChecking: false,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+
+        if (!isCancelled) {
+          setCurrentOfflineMapVerification({
+            metadata,
+            cachedCount: 0,
+            totalCount: metadata.urls?.length || 0,
+            isVerified: false,
+            supportsCacheStorage: typeof window !== "undefined" && "caches" in window,
+            isChecking: false,
+          });
+        }
+      }
+    };
+
+    verifyCurrentOfflineMap();
+
     return () => {
+      isCancelled = true;
+    };
+  }, [currentOfflinePack, offlineMapPacks]);
+
+  useEffect(() => {
+    const activeSearchTimeouts = searchTimeouts.current;
+
+    return () => {
+      Object.values(activeSearchTimeouts).forEach(clearTimeout);
+
       if (locationWatchRef.current !== null && "geolocation" in navigator) {
         navigator.geolocation.clearWatch(locationWatchRef.current);
       }
     };
   }, []);
 
+  const clearSearchState = (key, setter) => {
+    clearTimeout(searchTimeouts.current[key]);
+    searchRequestIds.current[key] = (searchRequestIds.current[key] || 0) + 1;
+    setter([]);
+  };
+
   const handleSearch = (value, setter, key) => {
     clearTimeout(searchTimeouts.current[key]);
+    const requestId = (searchRequestIds.current[key] || 0) + 1;
+    searchRequestIds.current[key] = requestId;
 
     if (!value.trim()) {
       setter([]);
@@ -231,7 +322,10 @@ function App() {
 
     searchTimeouts.current[key] = setTimeout(async () => {
       const results = await searchPlaces(value);
-      setter(results);
+
+      if (searchRequestIds.current[key] === requestId) {
+        setter(results);
+      }
     }, 300);
   };
 
@@ -281,6 +375,8 @@ function App() {
         currentLocation: null,
         error: "",
       });
+      clearSearchState("start", setStartSuggestions);
+      clearSearchState("destination", setDestSuggestions);
       setRoute(plannedTrip);
       await loadTripHistory();
     } catch (error) {
@@ -299,8 +395,8 @@ function App() {
     setDestination(trip.destinationQuery);
     setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
     setRoute(tripFromHistory(trip));
-    setStartSuggestions([]);
-    setDestSuggestions([]);
+    clearSearchState("start", setStartSuggestions);
+    clearSearchState("destination", setDestSuggestions);
     setErrorMessage("");
   };
 
@@ -310,8 +406,8 @@ function App() {
     setDestination(trip.destinationQuery);
     setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
     setRoute(routeFromOfflineTrip(trip));
-    setStartSuggestions([]);
-    setDestSuggestions([]);
+    clearSearchState("start", setStartSuggestions);
+    clearSearchState("destination", setDestSuggestions);
     setErrorMessage("");
   };
 
@@ -509,6 +605,40 @@ function App() {
     currentOfflinePack &&
     mapDownloadState.tripId === currentOfflinePack.id &&
     mapDownloadState.status === "downloading";
+  const offlineReadinessItems = route
+    ? [
+        {
+          label: "Route pack saved on this device",
+          ready: currentTripSavedOffline,
+          detail: currentTripSavedOffline
+            ? "Available in the offline trip library."
+            : "Save Offline keeps the route and stops available without network access.",
+        },
+        {
+          label: "Full map area cached",
+          ready: currentOfflineMapVerification.isVerified,
+          detail: currentOfflineMapStatus
+            ? currentOfflineMapVerification.isChecking
+              ? "Checking cached map tiles now."
+              : currentOfflineMapVerification.isVerified
+                ? `${currentOfflineMapVerification.cachedCount}/${currentOfflineMapVerification.totalCount} tiles verified.`
+                : `${currentOfflineMapVerification.cachedCount}/${currentOfflineMapVerification.totalCount} tiles found. Re-download recommended.`
+            : currentOfflineMapPreview
+              ? `${currentOfflineMapPreview.tileCount} tiles needed for the current route.`
+              : "Download an offline map area for turn-by-map confidence.",
+        },
+        {
+          label: "Stops and route data travel offline",
+          ready: Boolean(route.geometry?.coordinates?.length),
+          detail: `${route.places?.length || 0} saved stops stay bundled with the route pack.`,
+        },
+      ]
+    : [];
+  const offlineReadyCount = offlineReadinessItems.filter((item) => item.ready).length;
+  const isTripLowSignalReady =
+    offlineReadinessItems.length > 0 &&
+    offlineReadinessItems.every((item) => item.ready);
+  const stopFiltersLabel = formatFilterList(route?.filters || selectedFilters);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -568,7 +698,7 @@ function App() {
                         className="w-full border-b border-slate-800 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-slate-800"
                         onClick={() => {
                           setStart(item.displayName);
-                          setStartSuggestions([]);
+                          clearSearchState("start", setStartSuggestions);
                         }}
                       >
                         {item.displayName}
@@ -602,7 +732,7 @@ function App() {
                         className="w-full border-b border-slate-800 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-slate-800"
                         onClick={() => {
                           setDestination(item.displayName);
-                          setDestSuggestions([]);
+                          clearSearchState("destination", setDestSuggestions);
                         }}
                       >
                         {item.displayName}
@@ -686,7 +816,7 @@ function App() {
             <MapView
               route={route}
               isOffline={!isOnline}
-              hasOfflineMap={Boolean(currentOfflineMapStatus)}
+              hasOfflineMap={currentOfflineMapVerification.isVerified}
               currentLocation={navigationState.currentLocation}
               isNavigating={navigationState.isActive}
             />
@@ -819,13 +949,55 @@ function App() {
                   </div>
 
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                    <p className="text-sm font-medium text-slate-200">
-                      Offline readiness
-                    </p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Save this route to the device or download it as a pack before
-                      entering low-signal terrain.
-                    </p>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-200">
+                          Offline readiness
+                        </p>
+                        <p className="mt-2 text-sm text-slate-400">
+                          Use this checklist before heading into a low-signal area.
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs ${
+                          isTripLowSignalReady
+                            ? "bg-emerald-400/15 text-emerald-100"
+                            : "bg-amber-400/15 text-amber-100"
+                        }`}
+                      >
+                        {offlineReadyCount}/{offlineReadinessItems.length} ready
+                      </span>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {offlineReadinessItems.map((item) => (
+                        <div
+                          key={item.label}
+                          className="rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium text-white">
+                                {item.label}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-400">
+                                {item.detail}
+                              </p>
+                            </div>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs ${
+                                item.ready
+                                  ? "bg-emerald-400/15 text-emerald-100"
+                                  : "bg-slate-800 text-slate-300"
+                              }`}
+                            >
+                              {item.ready ? "Ready" : "Pending"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
                     <div className="mt-3 flex flex-wrap gap-3">
                       <button
                         type="button"
@@ -871,9 +1043,22 @@ function App() {
                       )}
                       {currentOfflineMapStatus && (
                         <p className="text-emerald-200">
-                          Offline map pack ready. Cached on {new Date(
+                          Offline map pack saved on {new Date(
                             currentOfflineMapStatus.cachedAt
                           ).toLocaleString()}.
+                        </p>
+                      )}
+                      {currentOfflineMapStatus &&
+                        !currentOfflineMapVerification.isChecking &&
+                        !currentOfflineMapVerification.isVerified && (
+                          <p className="text-amber-200">
+                            Map metadata exists, but the cached tile set is incomplete.
+                          </p>
+                        )}
+                      {!currentOfflineMapVerification.supportsCacheStorage && (
+                        <p className="text-amber-200">
+                          This browser can save route packs, but full tile caching is not
+                          supported.
                         </p>
                       )}
                       {isCurrentMapDownloading && (
@@ -890,7 +1075,7 @@ function App() {
                       Stop filters
                     </p>
                     <p className="mt-2 text-sm text-slate-400">
-                      {(route.filters || selectedFilters).join(", ")}
+                      {stopFiltersLabel}
                     </p>
                   </div>
 
@@ -915,9 +1100,11 @@ function App() {
                               <p className="font-medium text-white">
                                 {place.name}
                               </p>
-                              <p className="mt-1 text-xs uppercase tracking-[0.25em] text-cyan-200">
-                                {place.category}
-                              </p>
+                              {place.brand && (
+                                <p className="mt-1 text-sm text-slate-300">
+                                  {place.brand}
+                                </p>
+                              )}
                             </div>
                             <a
                               href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`}
@@ -929,9 +1116,63 @@ function App() {
                             </a>
                           </div>
 
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-cyan-100">
+                              {place.category}
+                            </span>
+                            {place.cuisine && (
+                              <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-300">
+                                {place.cuisine}
+                              </span>
+                            )}
+                            {place.openingHours && (
+                              <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-300">
+                                {place.openingHours === "24/7"
+                                  ? "Open 24/7"
+                                  : place.openingHours}
+                              </span>
+                            )}
+                          </div>
+
                           <p className="mt-3 text-sm text-slate-400">
                             {place.address || "Address details unavailable"}
                           </p>
+
+                          {place.highlights?.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {place.highlights.map((highlight) => (
+                                <span
+                                  key={highlight}
+                                  className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300"
+                                >
+                                  {highlight}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {(place.phone || place.website) && (
+                            <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                              {place.phone && (
+                                <a
+                                  href={`tel:${place.phone}`}
+                                  className="text-cyan-200 transition hover:text-cyan-100"
+                                >
+                                  {place.phone}
+                                </a>
+                              )}
+                              {place.website && (
+                                <a
+                                  href={normalizeExternalUrl(place.website)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-cyan-200 transition hover:text-cyan-100"
+                                >
+                                  Website
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))
                     ) : (
