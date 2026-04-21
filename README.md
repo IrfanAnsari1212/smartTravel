@@ -53,5 +53,5 @@ A full-stack travel planning web app that helps users plan trips with intelligen
 ### 1. Clone repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
+git clone https://IrfanAnsari1212.git
 cd travel-platform
