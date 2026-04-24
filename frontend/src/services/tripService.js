@@ -20,6 +20,7 @@
 
 import axios from "axios";
 import { API_BASE_URL } from "./api";
+console.log("API BASE:", API_BASE_URL);
 
 export const planTripRequest = async (payload) => {
   const response = await axios.post(
