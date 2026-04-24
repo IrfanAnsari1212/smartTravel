@@ -1,8 +1,10 @@
 const axios = require("axios");
 
-const SEARCH_BASE_URL = "https://nominatim.openstreetmap.org";
+const SEARCH_BASE_URL =
+  process.env.NOMINATIM_BASE_URL || "https://nominatim.openstreetmap.org";
+const SEARCH_TIMEOUT_MS = Number(process.env.NOMINATIM_TIMEOUT_MS) || 8000;
 const REQUEST_HEADERS = {
-  "User-Agent": "travel-platform/1.0",
+  "User-Agent": process.env.NOMINATIM_USER_AGENT || "travel-platform/1.0",
   Accept: "application/json",
 };
 
@@ -26,7 +28,7 @@ const searchPlaces = async (query) => {
       limit: 5,
       addressdetails: 1,
     },
-    timeout: 8000,
+    timeout: SEARCH_TIMEOUT_MS,
   });
 
   return response.data.map(normalizePlace);

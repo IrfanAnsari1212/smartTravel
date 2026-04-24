@@ -1,6 +1,9 @@
 const axios = require("axios");
 
 const DEFAULT_TYPES = ["restaurant", "hotel", "fuel"];
+const OVERPASS_URL =
+  process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter";
+const OVERPASS_TIMEOUT_MS = Number(process.env.OVERPASS_TIMEOUT_MS) || 8000;
 
 const overpassFragments = {
   restaurant: 'node["amenity"="restaurant"]',
@@ -95,7 +98,6 @@ const formatPlace = (place) => ({
 
 const getPlacesNearby = async (lat, lon, placeTypes = DEFAULT_TYPES) => {
   try {
-    const url = "https://overpass-api.de/api/interpreter";
     const selectedTypes = placeTypes.filter((type) => overpassFragments[type]);
 
     const queryParts = (selectedTypes.length ? selectedTypes : DEFAULT_TYPES).map(
@@ -110,8 +112,8 @@ const getPlacesNearby = async (lat, lon, placeTypes = DEFAULT_TYPES) => {
       out;
     `;
 
-    const response = await axios.post(url, query, {
-      timeout: 8000,
+    const response = await axios.post(OVERPASS_URL, query, {
+      timeout: OVERPASS_TIMEOUT_MS,
     });
 
     const deduped = new Map();
