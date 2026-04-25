@@ -1,9 +1,12 @@
-// export const API_BASE_URL =
-//   import.meta.env.VITE_API_BASE_URL || "/api";
+const trimTrailingSlash = (value) => value.replace(/\/+$/, "");
+const getDefaultApiBaseUrl = () => {
+  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
+    return "/_/backend/api";
+  }
 
+  return "/api";
+};
 
-// export const API_BASE_URL =
-//   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
-  export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+export const API_BASE_URL = trimTrailingSlash(
+  import.meta.env.VITE_API_BASE_URL || getDefaultApiBaseUrl()
+);

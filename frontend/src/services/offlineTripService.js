@@ -9,7 +9,8 @@ const sortTrips = (trips) =>
 const readOfflineTrips = () => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const trips = raw ? JSON.parse(raw) : [];
+    return Array.isArray(trips) ? trips : [];
   } catch (error) {
     console.error(error);
     return [];

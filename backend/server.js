@@ -1,4 +1,3 @@
-
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
@@ -18,78 +17,48 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-
-  app.use((req, res, next) => {
+app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
-// app.use(
-//   cors({
-//     origin(origin, callback) {
-//       if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
-//         callback(null, true);
-//         return;
-//       }
-
-//       callback(new Error("Origin not allowed by CORS"));
-//     },
-//   })
-// );
-
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-
-      const allowed = process.env.CORS_ORIGIN
-        ? process.env.CORS_ORIGIN.split(",")
-        : [];
-
-      if (!allowed.length || allowed.includes(origin)) {
-        return callback(null, true);
+    origin(origin, callback) {
+      if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
       }
 
-      callback(new Error("Not allowed by CORS"));
+      callback(new Error("Origin not allowed by CORS"));
     },
   })
 );
 app.use(express.json());
 
-// app.get("/api/health", (req, res) => {
-//   res.json({
-//     status: "ok",
-//     database: process.env.MONGO_URI ? "configured" : "fallback-memory",
-//   });
-// });
-
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
     uptime: process.uptime(),
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
+    database: process.env.MONGO_URI ? "configured" : "fallback-memory",
   });
 });
 
 app.use("/api/locations", locationRoutes);
 app.use("/api/trip", tripRoutes);
 
-// if (hasFrontendBuild) {
-//   app.use(express.static(frontendDistPath));
+if (hasFrontendBuild) {
+  app.use(express.static(frontendDistPath));
 
-//   app.get("/{*path}", (req, res, next) => {
-//     if (req.path.startsWith("/api/")) {
-//       next();
-//       return;
-//     }
-
-//     res.sendFile(frontendIndexPath);
-//   });
-// } else {
-//   app.get("/", (req, res) => {
-//     res.send("Travel Platform API is running");
-//   });
-// }
+  app.get(/^(?!\/api\/).*/, (req, res) => {
+    res.sendFile(frontendIndexPath);
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.send("Travel Platform API is running");
+  });
+}
 
 app.use((err, req, res, next) => {
   console.error("GLOBAL ERROR:", err.message);

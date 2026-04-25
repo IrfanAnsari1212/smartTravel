@@ -123,6 +123,8 @@ const routeFromOfflineTrip = (trip) => ({
   emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
   filters: trip.filters,
 });
+const normalizeTripHistory = (trips) => (Array.isArray(trips) ? trips : []);
+const normalizeOfflineTrips = (trips) => (Array.isArray(trips) ? trips : []);
 
 function App() {
   const [start, setStart] = useState("");
@@ -163,7 +165,7 @@ function App() {
   const locationWatchRef = useRef(null);
 
   const syncOfflineTrips = () => {
-    setOfflineTrips(listOfflineTrips());
+    setOfflineTrips(normalizeOfflineTrips(listOfflineTrips()));
   };
 
   const syncOfflineMapPacks = () => {
@@ -266,7 +268,7 @@ function App() {
 
     try {
       const trips = await getTripHistory();
-      setHistory(trips);
+      setHistory(normalizeTripHistory(trips));
     } catch (error) {
       console.error(error);
     } finally {
@@ -303,7 +305,7 @@ function App() {
 
       try {
         const trips = await getTripHistory();
-        setHistory(trips);
+        setHistory(normalizeTripHistory(trips));
       } catch (error) {
         console.error(error);
       } finally {

@@ -12,7 +12,7 @@ export const searchPlaces = async (query) => {
       params: { q: query.trim() },
     });
 
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     console.error(error);
     return [];
