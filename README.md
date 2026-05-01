@@ -4,6 +4,9 @@ A full-stack travel planning web app that helps users plan trips with intelligen
 
 ---
 
+## LINK
+-https://travel-platform-lime.vercel.app
+
 ## 🌍 Features
 
 ### 🔍 Smart Location Search
