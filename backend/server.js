@@ -23,12 +23,24 @@ const frontendDistPath = path.join(__dirname, "..", "frontend", "dist");
 const frontendIndexPath = path.join(frontendDistPath, "index.html");
 const hasFrontendBuild = fs.existsSync(frontendIndexPath);
 const allowedOrigins = getAllowedOrigins();
-const developmentOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
-const trustedOrigins = allowedOrigins.length ? allowedOrigins : developmentOrigins;
+const developmentOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "http://localhost:5000",
+  "http://127.0.0.1:5000",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+const trustedOrigins =
+  process.env.NODE_ENV === "production" && allowedOrigins.length
+    ? allowedOrigins
+    : [...new Set([...allowedOrigins, ...developmentOrigins])];
 
 app.disable("x-powered-by");
 app.use(requestLogger);
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   cors({
     origin(origin, callback) {
@@ -37,10 +49,12 @@ app.use(
         return;
       }
 
-      const error = new Error("Origin not allowed by CORS");
+      console.warn(`Blocked CORS request from origin: ${origin}`);
+      const error = new Error(`Origin ${origin} not allowed by CORS`);
       error.statusCode = 403;
       callback(error);
     },
+    credentials: true,
   })
 );
 app.use(express.json({ limit: "100kb" }));

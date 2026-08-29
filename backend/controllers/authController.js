@@ -4,8 +4,8 @@ const { z } = require("zod");
 const User = require("../models/User");
 
 const credentialsSchema = z.object({
-  email: z.string().trim().email().max(254),
-  password: z.string().min(12).max(128),
+  email: z.string().trim().email("Please enter a valid email address (e.g. name@example.com)").max(254),
+  password: z.string().min(12, "Password must be at least 12 characters long").max(128),
 });
 
 const createSessionResponse = (user) => ({
