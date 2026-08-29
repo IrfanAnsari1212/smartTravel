@@ -5,7 +5,10 @@ const buildTripContextSummary = (tripContext = {}) => {
     distance,
     duration,
     places = [],
+    waypoints = [],
+    weatherAlerts = [],
     emergencyServices = {},
+    preferences = {},
   } = tripContext;
 
   const startName = start?.name || "Starting Point";
@@ -43,12 +46,27 @@ const buildTripContextSummary = (tripContext = {}) => {
           .join("\n")
       : "None discovered along this segment.";
 
+  const weatherSummary = weatherAlerts.length
+    ? weatherAlerts
+        .map((w) => `- ⚠️ ${w.title || w.type}: ${w.message} (Severity: ${w.severity})`)
+        .join("\n")
+    : "No severe weather alerts active.";
+
+  const waypointsSummary = waypoints.length
+    ? waypoints.map((wp, i) => `Stop ${i + 1}: ${wp.name || wp}`).join(" -> ")
+    : "Direct corridor without planned intermediate stops.";
+
   return `
 TRIP OVERVIEW:
 - Origin: ${startName}
 - Destination: ${destName}
+- Intermediate Waypoints: ${waypointsSummary}
 - Driving Distance: ${distanceKm} km
 - Driving Duration: ${durationHrs} hours
+- Preferences: Avoid Tolls=${Boolean(preferences.avoidTolls)}, Avoid Highways=${Boolean(preferences.avoidHighways)}
+
+ACTIVE METEOROLOGICAL FORECAST & ALERTS:
+${weatherSummary}
 
 VERIFIED REAL PLACES FOUND ALONG ROUTE & DESTINATION (From OpenStreetMap):
 [Tourist Attractions & Sights]:
@@ -77,12 +95,12 @@ ${formatPlaceList(categorizedPlaces.mechanic)}
 const SYSTEM_INSTRUCTIONS = `
 You are the SmartTravel AI Assistant — an intelligent, friendly, and highly knowledgeable road trip and destination travel guide.
 
-CRITICAL GROUNDING RULES:
-1. Strictly ground all place recommendations on the VERIFIED REAL PLACES provided in the context.
-2. DO NOT hallucinate fake attractions, hotels, restaurants, phone numbers, or addresses.
+CRITICAL GROUNDING & NO FAKE DATA RULES:
+1. Strictly ground all place recommendations on the VERIFIED REAL PLACES and WEATHER provided in the context.
+2. DO NOT hallucinate fake attractions, hotels, restaurants, phone numbers, opening hours, or addresses.
 3. If the user asks for recommendations, refer specifically to the verified places in the list by their exact names.
 4. If no places of a requested type are in the verified list, acknowledge this honestly and offer practical guidance based on the route distance and estimated driving duration.
-5. Provide actionable, concise advice with helpful formatting (bullet points, bold text).
+5. When outputting structured recommendations, provide valid JSON matching the requested schema.
 6. When recommending stops, explain WHY each stop is suitable (e.g. scenic value, food specialty, convenient rest stop, 24/7 access).
 `;
 
@@ -90,4 +108,3 @@ module.exports = {
   buildTripContextSummary,
   SYSTEM_INSTRUCTIONS,
 };
-

@@ -8,7 +8,30 @@ import {
   useMap,
 } from "react-leaflet";
 import { useEffect, useMemo } from "react";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+const createNumberedIcon = (number) =>
+  L.divIcon({
+    className: "custom-map-pin",
+    html: `<div style="background:#0f172a; border:2px solid #38bdf8; color:#38bdf8; border-radius:9999px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:11px; box-shadow:0 4px 10px rgba(0,0,0,0.6);">${number}</div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+
+const startIcon = L.divIcon({
+  className: "custom-map-pin-start",
+  html: `<div style="background:#059669; border:2px solid #fff; color:#fff; border-radius:9999px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:11px; box-shadow:0 4px 10px rgba(5,150,105,0.6);">A</div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+});
+
+const destIcon = L.divIcon({
+  className: "custom-map-pin-dest",
+  html: `<div style="background:#e11d48; border:2px solid #fff; color:#fff; border-radius:9999px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; box-shadow:0 4px 10px rgba(225,29,72,0.6);">🏁</div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+});
 
 function FitBounds({ positions, currentLocation, shouldFollowUser, focusedPlace }) {
   const map = useMap();
@@ -38,9 +61,9 @@ function FitBounds({ positions, currentLocation, shouldFollowUser, focusedPlace 
   return null;
 }
 
-function buildOfflinePath(positions, places = []) {
+function buildOfflinePath(positions, places = [], waypoints = []) {
   if (!positions.length) {
-    return { path: "", markers: [], placePoints: [], viewBox: "0 0 900 500" };
+    return { path: "", markers: [], placePoints: [], waypointPoints: [], viewBox: "0 0 900 500" };
   }
 
   const width = 900;
@@ -77,104 +100,116 @@ function buildOfflinePath(positions, places = []) {
       point: toPoint([p.lat, p.lon]),
     }));
 
+  const waypointPoints = (waypoints || [])
+    .filter((w) => Number.isFinite(w.lat) && Number.isFinite(w.lon))
+    .map((w, idx) => ({
+      index: idx + 1,
+      name: w.name,
+      point: toPoint([w.lat, w.lon]),
+    }));
+
   return {
     path,
-    markers: svgPoints,
+    markers: [
+      { label: "Start", point: svgPoints[0], tone: "emerald" },
+      {
+        label: "Destination",
+        point: svgPoints[svgPoints.length - 1],
+        tone: "cyan",
+      },
+    ],
     placePoints,
+    waypointPoints,
     viewBox: `0 0 ${width} ${height}`,
   };
 }
 
-function OfflineRoutePreview({ route, positions, places, currentLocation, isNavigating }) {
-  const { path, markers, placePoints, viewBox } = useMemo(
-    () => buildOfflinePath(positions, places),
-    [positions, places]
+function OfflineRoutePreview({
+  route,
+  positions,
+  places,
+}) {
+  const offlinePath = useMemo(
+    () => buildOfflinePath(positions, places, route?.waypoints),
+    [positions, places, route?.waypoints]
   );
 
-  if (!route || !positions.length) {
-    return (
-      <div className="flex h-full items-center justify-center bg-slate-950 text-slate-400">
-        Save or import a route pack to view it offline.
-      </div>
-    );
-  }
-
   return (
-    <div className="relative flex h-full flex-col bg-linear-to-br from-slate-950 via-slate-900 to-cyan-950/60">
-      <div className="absolute inset-x-0 top-0 flex items-center justify-between border-b border-white/10 bg-slate-950/70 px-4 py-3 backdrop-blur">
+    <div className="relative flex h-full min-h-[460px] w-full flex-col justify-between overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-6 text-slate-100">
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-white">Offline Route View</p>
-          <p className="text-xs text-slate-400">
-            App shell and saved route data are available without live map tiles.
+          <p className="text-xs uppercase tracking-[0.25em] text-cyan-300">
+            Offline Mode
           </p>
+          <h2 className="mt-1 text-lg font-semibold text-white">
+            Vector Route View
+          </h2>
         </div>
-        <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
-          {places.length} saved stops
-        </span>
+        <div className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">
+          Tiles Unavailable
+        </div>
       </div>
 
-      <div className="flex-1 px-5 pb-5 pt-20">
-        <div className="h-full rounded-[28px] border border-white/10 bg-slate-950/80 p-4 shadow-2xl shadow-cyan-950/30">
-          <svg viewBox={viewBox} className="h-full w-full">
-            <defs>
-              <linearGradient id="routeGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#22d3ee" />
-                <stop offset="100%" stopColor="#38bdf8" />
-              </linearGradient>
-            </defs>
-
-            <rect width="100%" height="100%" rx="24" fill="#020617" />
-            <path
-              d={path}
-              fill="none"
-              stroke="rgba(34,211,238,0.25)"
-              strokeWidth="18"
-              strokeLinecap="round"
-            />
-            <path
-              d={path}
-              fill="none"
-              stroke="url(#routeGlow)"
-              strokeWidth="6"
-              strokeLinecap="round"
-            />
-
-            {markers[0] && (
-              <circle cx={markers[0][0]} cy={markers[0][1]} r="10" fill="#f8fafc" />
-            )}
-            {markers[markers.length - 1] && (
+      <div className="relative my-4 flex flex-1 items-center justify-center">
+        <svg
+          viewBox={offlinePath.viewBox}
+          className="h-full max-h-[340px] w-full"
+          role="img"
+          aria-label="Offline Route Path"
+        >
+          <defs>
+            <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#22d3ee" />
+            </linearGradient>
+          </defs>
+          <path
+            d={offlinePath.path}
+            fill="none"
+            stroke="url(#routeGradient)"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {offlinePath.markers.map((marker) => (
+            <g key={marker.label} transform={`translate(${marker.point[0]}, ${marker.point[1]})`}>
               <circle
-                cx={markers[markers.length - 1][0]}
-                cy={markers[markers.length - 1][1]}
-                r="10"
-                fill="#22d3ee"
+                r="7"
+                fill={marker.tone === "emerald" ? "#34d399" : "#22d3ee"}
+                stroke="#020617"
+                strokeWidth="2"
               />
-            )}
+              <text
+                y="-12"
+                textAnchor="middle"
+                className="fill-slate-300 text-[10px] font-medium"
+              >
+                {marker.label}
+              </text>
+            </g>
+          ))}
+          {offlinePath.waypointPoints.map((wp) => (
+            <g key={wp.index} transform={`translate(${wp.point[0]}, ${wp.point[1]})`}>
+              <circle r="6" fill="#0f172a" stroke="#38bdf8" strokeWidth="2" />
+              <text y="3" textAnchor="middle" className="fill-cyan-300 text-[9px] font-bold">
+                {wp.index}
+              </text>
+            </g>
+          ))}
+          {offlinePath.placePoints.map((place) => (
+            <g key={place.id} transform={`translate(${place.point[0]}, ${place.point[1]})`}>
+              <circle r="4" fill="#fb7185" />
+            </g>
+          ))}
+        </svg>
+      </div>
 
-            {placePoints.slice(0, 15).map((place, index) => (
-              <g key={place.id || `${place.name}-${index}`}>
-                <circle
-                  cx={place.point[0]}
-                  cy={place.point[1]}
-                  r="5"
-                  fill="#f59e0b"
-                  stroke="#fef3c7"
-                  strokeWidth="2"
-                />
-              </g>
-            ))}
-          </svg>
-
-          {isNavigating && currentLocation && (
-            <div className="absolute bottom-6 left-6 rounded-2xl border border-cyan-400/20 bg-slate-950/85 px-4 py-3 text-sm text-slate-200">
-              <p className="font-medium text-cyan-100">Live Trip Active</p>
-              <p className="mt-1 text-xs text-slate-400">
-                Current location: {currentLocation.lat.toFixed(5)},{" "}
-                {currentLocation.lon.toFixed(5)}
-              </p>
-            </div>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3 text-xs text-slate-400">
+        <span>Start: {route?.start?.name || "Route Start"}</span>
+        {route?.waypoints?.length > 0 && (
+          <span>{route.waypoints.length} intermediate stops</span>
+        )}
+        <span>Destination: {route?.destination?.name || "Destination"}</span>
       </div>
     </div>
   );
@@ -216,6 +251,7 @@ export default function MapView({
     [route]
   );
   const places = useMemo(() => route?.places || [], [route]);
+  const waypoints = useMemo(() => route?.waypoints || [], [route]);
 
   if (isOffline && !hasOfflineMap) {
     return (
@@ -244,7 +280,45 @@ export default function MapView({
           shouldFollowUser={isNavigating}
           focusedPlace={focusedPlace}
         />
-        {positions.length > 0 && <Polyline positions={positions} />}
+        {positions.length > 0 && (
+          <Polyline
+            positions={positions}
+            pathOptions={{ color: "#06b6d4", weight: 5, opacity: 0.85 }}
+          />
+        )}
+
+        {/* Start Point Marker */}
+        {route?.start && (
+          <Marker position={[route.start.lat, route.start.lon]} icon={startIcon}>
+            <Popup>
+              <b>Start: {route.start.name || "Origin"}</b>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Intermediate Waypoint Markers */}
+        {waypoints.map((wp, idx) => (
+          <Marker
+            key={idx}
+            position={[wp.lat, wp.lon]}
+            icon={createNumberedIcon(idx + 1)}
+          >
+            <Popup>
+              <b>Stop {idx + 1}: {wp.name || `Waypoint ${idx + 1}`}</b>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Destination Marker */}
+        {route?.destination && (
+          <Marker position={[route.destination.lat, route.destination.lon]} icon={destIcon}>
+            <Popup>
+              <b>Destination: {route.destination.name || "Destination"}</b>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Places Markers */}
         {places.map((place, index) => (
           <Marker key={place.id || index} position={[place.lat, place.lon]}>
             <Popup>
@@ -252,6 +326,7 @@ export default function MapView({
             </Popup>
           </Marker>
         ))}
+
         {currentLocation && (
           <>
             <Circle
@@ -274,6 +349,7 @@ export default function MapView({
             </Marker>
           </>
         )}
+
         {focusedPlace && (
           <Circle
             center={[focusedPlace.lat, focusedPlace.lon]}
@@ -290,4 +366,3 @@ export default function MapView({
     </div>
   );
 }
-

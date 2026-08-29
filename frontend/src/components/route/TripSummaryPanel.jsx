@@ -1,6 +1,37 @@
+import { useState, useEffect } from "react";
 import { formatDistance, formatDuration } from "../../utils/formatters";
+import { fetchRouteWeather } from "../../services/weatherService";
+import WeatherWidget from "../weather/WeatherWidget";
+import WeatherAlertsBanner from "../weather/WeatherAlertsBanner";
 
 export default function TripSummaryPanel({ route, start, destination }) {
+  const [routeWeather, setRouteWeather] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (route?.start && route?.destination) {
+      fetchRouteWeather({
+        start: route.start,
+        destination: route.destination,
+        waypoints: route.waypoints || [],
+        stops: (route.days || []).flatMap((d) => d.stops || []),
+      })
+        .then((data) => {
+          if (isMounted) {
+            setRouteWeather(data);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load route weather:", err);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [route]);
+
   if (!route) {
     return (
       <div className="space-y-3">
@@ -15,15 +46,20 @@ export default function TripSummaryPanel({ route, start, destination }) {
 
   return (
     <div className="space-y-4">
+      {/* Route-Wide Severe Weather Alerts */}
+      {routeWeather?.severeWarnings?.length > 0 && (
+        <WeatherAlertsBanner warnings={routeWeather.severeWarnings} />
+      )}
+
       <div>
         <h2 className="text-xl font-semibold text-white">Trip Summary</h2>
-        <p className="mt-2 text-sm text-slate-300">
+        <p className="mt-1 text-sm text-slate-300">
           {start} to {destination}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-slate-950 p-4">
+        <div className="rounded-2xl bg-slate-950 p-4 border border-slate-850">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
             Distance
           </p>
@@ -31,7 +67,7 @@ export default function TripSummaryPanel({ route, start, destination }) {
             {formatDistance(route.distance)}
           </p>
         </div>
-        <div className="rounded-2xl bg-slate-950 p-4">
+        <div className="rounded-2xl bg-slate-950 p-4 border border-slate-850">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
             Duration
           </p>
@@ -40,7 +76,15 @@ export default function TripSummaryPanel({ route, start, destination }) {
           </p>
         </div>
       </div>
+
+      {/* Destination Weather Forecast Card */}
+      {route.destination?.lat && route.destination?.lon && (
+        <WeatherWidget
+          lat={route.destination.lat}
+          lon={route.destination.lon}
+          name={route.destination.name || destination}
+        />
+      )}
     </div>
   );
 }
-

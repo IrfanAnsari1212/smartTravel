@@ -1,6 +1,6 @@
 const { z } = require("zod");
 const { buildTripContextSummary, SYSTEM_INSTRUCTIONS } = require("../services/aiContextBuilder");
-const { queryGemini } = require("../adapters/aiAdapter");
+const { getAIProvider, queryGemini } = require("../adapters/aiProvider");
 
 const chatSchema = z.object({
   message: z.string().trim().min(1).max(1000),
@@ -11,6 +11,8 @@ const chatSchema = z.object({
       distance: z.number().optional(),
       duration: z.number().optional(),
       places: z.array(z.any()).optional(),
+      waypoints: z.array(z.any()).optional(),
+      weatherAlerts: z.array(z.any()).optional(),
       emergencyServices: z.record(z.string(), z.any()).optional(),
     })
     .optional()
@@ -27,10 +29,17 @@ const itinerarySchema = z.object({
       distance: z.number().optional(),
       duration: z.number().optional(),
       places: z.array(z.any()).optional(),
+      waypoints: z.array(z.any()).optional(),
+      weatherAlerts: z.array(z.any()).optional(),
       emergencyServices: z.record(z.string(), z.any()).optional(),
     })
     .optional()
     .default({}),
+});
+
+const structuredSchema = z.object({
+  promptType: z.enum(["itinerary", "poi", "safety", "general"]).default("poi"),
+  tripContext: z.record(z.string(), z.any()).optional().default({}),
 });
 
 const chatWithAssistant = async (req, res, next) => {
@@ -49,6 +58,7 @@ const chatWithAssistant = async (req, res, next) => {
     res.json({
       reply: result.reply,
       recommendedPlaces: result.recommendedPlaces || [],
+      provider: result.provider || "gemini",
     });
   } catch (error) {
     next(error);
@@ -73,7 +83,26 @@ const generateItinerary = async (req, res, next) => {
     res.json({
       reply: result.reply,
       recommendedPlaces: result.recommendedPlaces || [],
+      provider: result.provider || "gemini",
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const generateStructuredRecommendations = async (req, res, next) => {
+  try {
+    const { promptType, tripContext } = structuredSchema.parse(req.body);
+    const provider = getAIProvider();
+
+    const result = await provider.generateStructuredRecommendation({
+      promptType,
+      systemInstruction: SYSTEM_INSTRUCTIONS,
+      userPrompt: `Generate structured recommendation for ${promptType}`,
+      tripContext,
+    });
+
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -82,5 +111,5 @@ const generateItinerary = async (req, res, next) => {
 module.exports = {
   chatWithAssistant,
   generateItinerary,
+  generateStructuredRecommendations,
 };
-

@@ -15,33 +15,58 @@ const authRoutes = require("./routes/authRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const emergencyRoutes = require("./routes/emergencyRoutes");
+const hotelRoutes = require("./routes/hotelRoutes");
+const weatherRoutes = require("./routes/weatherRoutes");
 
 const app = express();
 const frontendDistPath = path.join(__dirname, "..", "frontend", "dist");
 const frontendIndexPath = path.join(frontendDistPath, "index.html");
 const hasFrontendBuild = fs.existsSync(frontendIndexPath);
 const allowedOrigins = getAllowedOrigins();
-const developmentOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
-const trustedOrigins = allowedOrigins.length ? allowedOrigins : developmentOrigins;
+const developmentOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "http://localhost:5000",
+  "http://127.0.0.1:5000",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+const trustedOrigins =
+  process.env.NODE_ENV === "production" && allowedOrigins.length
+    ? allowedOrigins
+    : [...new Set([...allowedOrigins, ...developmentOrigins])];
 
 app.disable("x-powered-by");
 app.use(requestLogger);
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || trustedOrigins.includes(origin)) {
+      if (
+        !origin ||
+        trustedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app") ||
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1")
+      ) {
         callback(null, true);
         return;
       }
 
-      const error = new Error("Origin not allowed by CORS");
+      console.warn(`Blocked CORS request from origin: ${origin}`);
+      const error = new Error(`Origin ${origin} not allowed by CORS`);
       error.statusCode = 403;
       callback(error);
     },
+    credentials: true,
   })
 );
 app.use(express.json({ limit: "100kb" }));
+
+// Rate limiter
 app.use(
   "/api",
   rateLimit({
@@ -52,6 +77,20 @@ app.use(
     message: { message: "Too many requests. Please try again later." },
   })
 );
+
+// Serverless DB connect middleware
+app.use("/api", async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("Database connection failure on request:", err.message);
+    res.status(503).json({
+      message: "Database is currently unavailable. Please verify MONGO_URI in deployment environment variables.",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+});
 
 app.get("/api/health", (req, res) => {
   const dbState = mongoose.connection.readyState;
@@ -86,6 +125,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/trip", tripRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/emergency", emergencyRoutes);
+app.use("/api/hotels", hotelRoutes);
+app.use("/api/weather", weatherRoutes);
 
 app.use("/api", (req, res) => {
   res.status(404).json({ message: "API route not found" });
@@ -132,7 +174,10 @@ const startServer = async () => {
   });
 };
 
-startServer().catch((error) => {
-  console.error("Server startup failed:", error.message);
-  process.exit(1);
-});
+if (!process.env.VERCEL) {
+  startServer().catch((error) => {
+    console.error("Server startup failed:", error.message);
+  });
+}
+
+module.exports = app;

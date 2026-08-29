@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getDistanceBetweenPoints } from "../utils/formatters";
+import { checkRouteDeviation, calculateDynamicEta } from "../utils/deviationDetector";
 
 const calculateBearing = (start, end) => {
   if (!start || !end) return 0;
@@ -100,7 +101,7 @@ export function useLiveNavigation(route) {
         const userLoc = {
           lat: position.coords.latitude,
           lon: position.coords.longitude,
-          accuracy: position.coords.accuracy,
+          accuracy: position.coords.accuracy || 10,
           speed: position.coords.speed || 0,
           heading: position.coords.heading || 0,
           timestamp: position.timestamp,
@@ -269,6 +270,33 @@ export function useLiveNavigation(route) {
     return getDistanceBetweenPoints(navigationState.currentLocation, targetPoint);
   }, [navigationState.currentLocation, steps, activeStepIndex]);
 
+  // Route Deviation Detection
+  const deviationInfo = useMemo(() => {
+    if (!navigationState.currentLocation || coordinates.length < 2) {
+      return { isDeviated: false, distanceOffRouteMeters: 0 };
+    }
+    // Only flag deviation when active live GPS tracking is running
+    if (navigationState.status === "tracking" || navigationState.status === "simulating") {
+      return checkRouteDeviation(navigationState.currentLocation, coordinates, 150);
+    }
+    return { isDeviated: false, distanceOffRouteMeters: 0 };
+  }, [navigationState.currentLocation, navigationState.status, coordinates]);
+
+  // Dynamic ETA Calculation
+  const dynamicEta = useMemo(() => {
+    if (liveDistanceToDestination === null) {
+      return {
+        etaFormatted: route?.duration ? `${Math.round(route.duration / 60)} mins` : "—",
+        etaDurationMinutes: Math.round((route?.duration || 0) / 60),
+        etaTimestamp: "—",
+      };
+    }
+    return calculateDynamicEta(
+      liveDistanceToDestination,
+      navigationState.currentLocation?.speed
+    );
+  }, [liveDistanceToDestination, navigationState.currentLocation?.speed, route]);
+
   const progressPercent = useMemo(() => {
     if (!coordinates.length) return 0;
     if (isSimulating || navigationState.status === "simulating" || navigationState.status === "arrived") {
@@ -291,6 +319,8 @@ export function useLiveNavigation(route) {
     progressPercent,
     distanceToNextManeuver,
     liveDistanceToDestination,
+    deviationInfo,
+    dynamicEta,
     setActiveStepIndex,
     setSimulationSpeedMultiplier,
     startTrip,

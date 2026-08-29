@@ -156,42 +156,41 @@ export default function AITravelAssistant({ route }) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-6 right-4 sm:right-6 z-50">
       {/* Floating Toggle Button */}
       {!isOpen && (
         <button
           type="button"
+          aria-label="Open AI Travel Assistant"
           onClick={() => setIsOpen(true)}
-          className="group flex items-center gap-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3.5 text-sm font-semibold text-white shadow-xl shadow-cyan-500/25 transition-all hover:scale-105 hover:shadow-cyan-500/40"
+          className="flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-xs font-bold text-white shadow-2xl shadow-cyan-900/50 hover:from-cyan-400 hover:to-blue-500 hover:scale-105 active:scale-95 transition min-h-[44px]"
         >
-          <span className="text-lg">✨</span>
+          <span className="text-base">✨</span>
           <span>AI Travel Assistant</span>
-          {route && (
-            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          )}
         </button>
       )}
 
       {/* Floating Chat Window */}
       {isOpen && (
-        <div className="flex h-[560px] w-[380px] sm:w-[440px] flex-col overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/95 shadow-2xl backdrop-blur-xl transition-all">
+        <div className="flex flex-col overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl max-sm:fixed max-sm:inset-3 max-sm:bottom-16 sm:w-96 sm:h-[520px] max-sm:h-auto animate-in fade-in zoom-in-95 duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-4 py-3.5">
+          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 text-sm">
                 ✨
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-white">AI Travel Assistant</h4>
-                <p className="text-xs text-slate-400">
+                <p className="text-[11px] text-slate-400">
                   {route ? `Grounded on ${route.destination?.name || "active route"}` : "Route planning & recommendations"}
                 </p>
               </div>
             </div>
             <button
               type="button"
+              aria-label="Close AI Travel Assistant"
               onClick={() => setIsOpen(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-white"
             >
               ✕
             </button>
@@ -203,9 +202,10 @@ export default function AITravelAssistant({ route }) {
               <button
                 key={idx}
                 type="button"
+                aria-label={item.label}
                 disabled={loading}
                 onClick={() => handleSendMessage(item.prompt)}
-                className="whitespace-nowrap rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1 text-xs font-medium text-slate-300 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-white disabled:opacity-50"
+                className="whitespace-nowrap rounded-full border border-slate-700 bg-slate-800/60 px-3.5 py-1.5 text-xs font-medium text-slate-300 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-white disabled:opacity-50 min-h-[38px] flex items-center"
               >
                 {item.label}
               </button>
@@ -248,23 +248,18 @@ export default function AITravelAssistant({ route }) {
                                 {p.category.toUpperCase()} • {p.address || "On route"}
                               </p>
                             </div>
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-cyan-200 hover:border-cyan-300 hover:text-white"
-                            >
-                              Map
-                            </a>
+                            <span className="shrink-0 rounded-md bg-cyan-950 px-2 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-800/40">
+                              ⭐ Verified
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+                  <span className="mt-1 block text-right text-[10px] opacity-60">
+                    {msg.timestamp}
+                  </span>
                 </div>
-                <span className="mt-1 text-[10px] text-slate-500 px-1">
-                  {msg.timestamp}
-                </span>
               </div>
             ))}
 
@@ -295,12 +290,13 @@ export default function AITravelAssistant({ route }) {
                   : "Plan a trip first to ask route questions..."
               }
               disabled={loading}
-              className="flex-1 rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none disabled:opacity-50"
+              className="flex-1 rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none disabled:opacity-50 min-h-[44px]"
             />
             <button
               type="submit"
+              aria-label="Send message to AI assistant"
               disabled={loading || !inputMessage.trim()}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500 text-slate-950 font-bold transition hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-500 text-slate-950 font-bold transition hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               ➤
             </button>

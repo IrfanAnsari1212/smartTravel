@@ -35,32 +35,36 @@ export default function LiveNavigationPanel({
   progressPercent = 0,
   distanceToNextManeuver,
   liveDistanceToDestination,
+  deviationInfo = { isDeviated: false, distanceOffRouteMeters: 0 },
+  dynamicEta = { etaFormatted: "—", etaTimestamp: "—" },
   setSimulationSpeedMultiplier,
   startTrip,
   stopTrip,
   startSimulation,
   pauseSimulation,
   resetSimulation,
+  onRecalculateRoute,
 }) {
   const [showAllSteps, setShowAllSteps] = useState(false);
 
   const currentStep = steps[activeStepIndex] || steps[0] || null;
   const nextStep = steps[activeStepIndex + 1] || null;
+  const currLoc = navigationState.currentLocation;
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 space-y-4">
+    <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 space-y-4 shadow-2xl backdrop-blur">
       {/* Header & Main Mode Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl">🧭</span>
-            <h3 className="text-base font-semibold text-white">Live Navigation & Guidance</h3>
+            <h3 className="text-base font-bold text-white">Live Trip Mode & Tracking</h3>
             {navigationState.isActive && (
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
             )}
           </div>
           <p className="mt-1 text-xs text-slate-400">
-            Real-time GPS tracking, turn-by-turn guidance, and route simulation.
+            Real-time GPS positioning, deviation alerts, and live travel telemetry.
           </p>
         </div>
 
@@ -70,10 +74,10 @@ export default function LiveNavigationPanel({
             <button
               type="button"
               onClick={startTrip}
-              className="flex items-center gap-1.5 rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-emerald-300 shadow-md shadow-emerald-500/20"
+              className="flex items-center gap-1.5 rounded-full bg-emerald-400 px-4 py-2 text-xs font-bold text-slate-950 transition hover:bg-emerald-300 shadow-md shadow-emerald-500/20"
             >
               <span>🛰️</span>
-              <span>Start GPS</span>
+              <span>Start GPS Trip</span>
             </button>
           ) : (
             <button
@@ -81,7 +85,7 @@ export default function LiveNavigationPanel({
               onClick={() => stopTrip("idle", "")}
               className="rounded-full border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
             >
-              Stop Navigation
+              Stop Trip Mode
             </button>
           )}
 
@@ -118,6 +122,34 @@ export default function LiveNavigationPanel({
         </div>
       </div>
 
+      {/* Route Deviation Alert Banner */}
+      {deviationInfo?.isDeviated && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-950/40 p-4 shadow-lg flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 text-lg border border-amber-500/30">
+              ⚠️
+            </span>
+            <div>
+              <h4 className="font-bold text-xs text-amber-200">Route Deviation Detected</h4>
+              <p className="text-[11px] text-amber-300/80 mt-0.5">
+                You have moved away from the planned route ({deviationInfo.distanceOffRouteMeters}m off-course).
+              </p>
+            </div>
+          </div>
+
+          {onRecalculateRoute && (
+            <button
+              type="button"
+              onClick={() => onRecalculateRoute({ optimize: true })}
+              className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 shadow hover:bg-amber-300 transition"
+            >
+              <span>🔄</span>
+              <span>Recalculate Route</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Simulation Speed Bar */}
       {(isSimulating || navigationState.status === "paused") && (
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-slate-900/90 px-4 py-2 border border-slate-800 text-xs">
@@ -141,7 +173,7 @@ export default function LiveNavigationPanel({
         </div>
       )}
 
-      {/* Prominent Active Turn Maneuver Card */}
+      {/* Active Guidance Card */}
       {currentStep && (
         <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/30 p-4 shadow-lg">
           <div className="flex items-start gap-3.5">
@@ -174,11 +206,11 @@ export default function LiveNavigationPanel({
         </div>
       )}
 
-      {/* Progress Bar */}
+      {/* Route Progress Bar */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>Route Progress</span>
-          <span className="font-semibold text-cyan-300">{progressPercent}%</span>
+          <span className="font-semibold text-cyan-300">{progressPercent}% completed</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-900 border border-slate-800">
           <div
@@ -188,46 +220,72 @@ export default function LiveNavigationPanel({
         </div>
       </div>
 
-      {/* Telemetry Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      {/* Comprehensive Telemetry Metrics Grid (Current Position, Remaining Distance, ETA, Accuracy, Speed) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        {/* 1. Current Position */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
-          <p className="mt-1 text-sm font-semibold text-white capitalize">
-            {navigationState.status === "tracking"
-              ? "Live GPS"
-              : navigationState.status === "simulating"
-              ? "Simulating"
-              : navigationState.status === "arrived"
-              ? "Arrived 🏁"
-              : navigationState.status === "paused"
-              ? "Paused"
-              : "Ready"}
+          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Current Position</p>
+          <p className="mt-1 text-xs font-bold text-white truncate" title={currLoc ? `${currLoc.lat.toFixed(4)}°, ${currLoc.lon.toFixed(4)}°` : "No GPS fix"}>
+            {currLoc ? `${currLoc.lat.toFixed(4)}°, ${currLoc.lon.toFixed(4)}°` : "Acquiring..."}
           </p>
+          <span className="text-[10px] text-slate-400 block mt-0.5">
+            {currLoc ? "GPS Fix Active" : "Waiting for GPS"}
+          </span>
         </div>
 
+        {/* 2. Remaining Distance */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Remaining Dist</p>
+          <p className="mt-1 text-sm font-bold text-cyan-300">
+            {liveDistanceToDestination !== null ? formatDistance(liveDistanceToDestination) : "—"}
+          </p>
+          <span className="text-[10px] text-slate-400 block mt-0.5">To destination</span>
+        </div>
+
+        {/* 3. Dynamic ETA */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Estimated Arrival (ETA)</p>
+          <p className="mt-1 text-sm font-bold text-emerald-300">
+            {dynamicEta.etaTimestamp !== "—" ? dynamicEta.etaTimestamp : dynamicEta.etaFormatted}
+          </p>
+          <span className="text-[10px] text-slate-400 block mt-0.5">
+            ~{dynamicEta.etaFormatted}
+          </span>
+        </div>
+
+        {/* 4. Speed */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Speed</p>
-          <p className="mt-1 text-sm font-semibold text-white">
-            {formatSpeed(navigationState.currentLocation?.speed)}
+          <p className="mt-1 text-sm font-bold text-white">
+            {formatSpeed(currLoc?.speed)}
           </p>
+          <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+            {currLoc?.heading !== undefined ? getCompassDirection(currLoc.heading) : "—"}
+          </span>
         </div>
 
+        {/* 5. GPS Accuracy */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Heading</p>
-          <p className="mt-1 text-sm font-semibold text-white truncate">
-            {navigationState.currentLocation?.heading !== undefined
-              ? getCompassDirection(navigationState.currentLocation.heading)
-              : "—"}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">To Destination</p>
-          <p className="mt-1 text-sm font-semibold text-white">
-            {liveDistanceToDestination
-              ? formatDistance(liveDistanceToDestination)
-              : "—"}
-          </p>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">GPS Accuracy</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                !currLoc
+                  ? "bg-slate-600"
+                  : (currLoc.accuracy || 10) < 15
+                  ? "bg-emerald-400"
+                  : (currLoc.accuracy || 10) < 50
+                  ? "bg-amber-400"
+                  : "bg-rose-400"
+              }`}
+            />
+            <p className="text-sm font-bold text-white">
+              {currLoc?.accuracy ? `±${Math.round(currLoc.accuracy)}m` : "±10m"}
+            </p>
+          </div>
+          <span className="text-[10px] text-slate-400 block mt-0.5">
+            {(currLoc?.accuracy || 10) < 15 ? "High Precision" : "Standard Precision"}
+          </span>
         </div>
       </div>
 

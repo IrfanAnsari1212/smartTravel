@@ -20,3 +20,21 @@ export const toggleFavoriteTrip = async (tripId) => {
   const response = await axios.patch(`${API_BASE_URL}/trip/${tripId}/favorite`, {}, authConfig());
   return response.data;
 };
+
+export const updateTripItineraryRequest = async (tripId, days) => {
+  const response = await axios.put(
+    `${API_BASE_URL}/trip/${tripId}/itinerary`,
+    { days },
+    authConfig()
+  );
+  return response.data;
+};
+
+export const recalculateOptimizedRouteRequest = async (payload) => {
+  const response = await axios.post(
+    `${API_BASE_URL}/trip/recalculate`,
+    payload,
+    authConfig()
+  );
+  return response.data;
+};

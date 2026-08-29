@@ -12,6 +12,9 @@ import RoutePlannerForm from "./components/route/RoutePlannerForm";
 import TripSummaryPanel from "./components/route/TripSummaryPanel";
 import RecommendedStops from "./components/stops/RecommendedStops";
 import AITravelAssistant from "./components/ai/AITravelAssistant";
+import EmergencyHubModal from "./components/emergency/EmergencyHubModal";
+import HotelSearchModal from "./components/hotels/HotelSearchModal";
+import MultiDayItineraryPanel from "./components/itinerary/MultiDayItineraryPanel";
 
 import { AuthProvider } from "./context/AuthProvider";
 import { useAuthContext } from "./context/useAuthContext";
@@ -30,6 +33,8 @@ function SmartTravelDashboard() {
   const [isOnline, setIsOnline] = useState(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
+  const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
+  const [isHotelsOpen, setIsHotelsOpen] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -161,7 +166,7 @@ function SmartTravelDashboard() {
         onChange={onFileInputChange}
       />
 
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-6 md:px-6">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-6 pb-28 sm:pb-8 md:px-6">
         <AuthBar
           session={auth.session}
           authMode={auth.authMode}
@@ -184,15 +189,28 @@ function SmartTravelDashboard() {
           </div>
         )}
 
-        <section className="rounded-3xl border border-cyan-500/20 bg-linear-to-br from-slate-900 via-slate-900 to-cyan-950/60 p-6 shadow-2xl shadow-cyan-950/30">
-          <div className="flex flex-col gap-6">
-            <HeroHeader />
+        <main className="flex flex-col gap-6">
+          <section className="rounded-3xl border border-cyan-500/20 bg-linear-to-br from-slate-900 via-slate-900 to-cyan-950/60 p-4 sm:p-6 shadow-2xl shadow-cyan-950/30">
+            <div className="flex flex-col gap-6">
+              <HeroHeader />
 
-            <RoutePlannerForm
+              <RoutePlannerForm
               start={planner.start}
               setStart={planner.setStart}
               destination={planner.destination}
               setDestination={planner.setDestination}
+              waypoints={planner.waypoints}
+              addWaypoint={planner.addWaypoint}
+              removeWaypoint={planner.removeWaypoint}
+              updateWaypoint={planner.updateWaypoint}
+              moveWaypointUp={planner.moveWaypointUp}
+              moveWaypointDown={planner.moveWaypointDown}
+              avoidTolls={planner.avoidTolls}
+              setAvoidTolls={planner.setAvoidTolls}
+              avoidHighways={planner.avoidHighways}
+              setAvoidHighways={planner.setAvoidHighways}
+              optimize={planner.optimize}
+              setOptimize={planner.setOptimize}
               startSuggestions={planner.startSuggestions}
               destSuggestions={planner.destSuggestions}
               selectedFilters={planner.selectedFilters}
@@ -251,12 +269,23 @@ function SmartTravelDashboard() {
                       progressPercent={navigation.progressPercent}
                       distanceToNextManeuver={navigation.distanceToNextManeuver}
                       liveDistanceToDestination={navigation.liveDistanceToDestination}
+                      deviationInfo={navigation.deviationInfo}
+                      dynamicEta={navigation.dynamicEta}
                       setSimulationSpeedMultiplier={navigation.setSimulationSpeedMultiplier}
                       startTrip={() => navigation.startTrip(planner.setErrorMessage)}
                       stopTrip={navigation.stopTrip}
                       startSimulation={navigation.startSimulation}
                       pauseSimulation={navigation.pauseSimulation}
                       resetSimulation={navigation.resetSimulation}
+                      onRecalculateRoute={planner.recalculateOptimizedRoute}
+                    />
+
+                    <MultiDayItineraryPanel
+                      route={planner.route}
+                      isOnline={isOnline}
+                      session={auth.session}
+                      onItineraryUpdated={planner.loadTripHistory}
+                      onRecalculateRoute={planner.recalculateOptimizedRoute}
                     />
 
                     <EmergencyPanel
@@ -323,7 +352,48 @@ function SmartTravelDashboard() {
             />
           </div>
         </section>
-      </div>
+      </main>
+    </div>
+
+    {/* Floating Action Buttons / Mobile Bottom Dock */}
+    <nav aria-label="Quick Travel Actions" className="max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-40 max-sm:bg-slate-950/95 max-sm:border-t max-sm:border-slate-800 max-sm:px-4 max-sm:py-2.5 max-sm:backdrop-blur-md max-sm:flex max-sm:items-center max-sm:justify-around sm:fixed sm:bottom-6 sm:left-6 sm:z-40 sm:flex sm:flex-col sm:gap-2.5">
+      <button
+        type="button"
+        aria-label="Open Emergency Support Hub"
+        onClick={() => setIsEmergencyOpen(true)}
+        className="flex items-center gap-2 rounded-full bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-xl shadow-rose-950/60 border border-rose-400/40 hover:bg-rose-500 hover:scale-105 transition active:scale-95 min-h-[44px]"
+      >
+        <span className="animate-pulse text-base">🚨</span>
+        <span className="max-sm:hidden">Emergency Support</span>
+        <span className="sm:hidden font-bold">Emergency</span>
+      </button>
+
+      <button
+        type="button"
+        aria-label="Open Hotel & Room Search"
+        onClick={() => setIsHotelsOpen(true)}
+        className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-xl shadow-indigo-950/60 border border-indigo-400/40 hover:bg-indigo-500 hover:scale-105 transition active:scale-95 min-h-[44px]"
+      >
+        <span className="text-base">🏨</span>
+        <span className="max-sm:hidden">Hotels & Rooms</span>
+        <span className="sm:hidden font-bold">Hotels</span>
+      </button>
+    </nav>
+
+      <EmergencyHubModal
+        isOpen={isEmergencyOpen}
+        onClose={() => setIsEmergencyOpen(false)}
+        currentLocation={navigation.navigationState.currentLocation}
+        route={planner.route}
+        session={auth.session}
+      />
+
+      <HotelSearchModal
+        isOpen={isHotelsOpen}
+        onClose={() => setIsHotelsOpen(false)}
+        currentLocation={navigation.navigationState.currentLocation}
+        route={planner.route}
+      />
 
       {/* Floating AI Travel Assistant */}
       <AITravelAssistant route={planner.route} />

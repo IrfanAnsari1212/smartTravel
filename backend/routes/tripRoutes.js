@@ -6,11 +6,15 @@ const {
   getTripHistory,
   planTrip,
   updateFavoriteTrip,
+  updateTripItinerary,
+  recalculateRoute,
 } = require("../controllers/tripController");
 
 router.use(requireAuth);
 router.get("/history", getTripHistory);
 router.post("/route", planTrip);
+router.post("/recalculate", recalculateRoute);
 router.patch("/:id/favorite", updateFavoriteTrip);
+router.put("/:id/itinerary", updateTripItinerary);
 
 module.exports = router;
