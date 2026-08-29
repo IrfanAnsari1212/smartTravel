@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const axios = require("axios");
 
-const { queryNominatim } = require("../adapters/nominatimAdapter");
+const { queryNominatim, reverseNominatim } = require("../adapters/nominatimAdapter");
 const { queryOsrmRoute } = require("../adapters/osrmAdapter");
 const { queryOverpass } = require("../adapters/overpassAdapter");
 
@@ -31,6 +31,32 @@ test("nominatimAdapter returns normalized place objects", async (t) => {
     displayName: "Mumbai, Maharashtra, India",
     lat: 19.076,
     lon: 72.8777,
+  });
+});
+
+test("reverseNominatim returns normalized reverse geocoded place", async (t) => {
+  const originalGet = axios.get;
+  t.after(() => { axios.get = originalGet; });
+
+  axios.get = async (url, config) => {
+    assert.equal(config.params.lat, 28.4595);
+    assert.equal(config.params.lon, 77.0266);
+    return {
+      data: {
+        place_id: 1234,
+        display_name: "Gurugram, Haryana, India",
+        lat: "28.4595",
+        lon: "77.0266",
+      },
+    };
+  };
+
+  const result = await reverseNominatim(28.4595, 77.0266);
+  assert.deepEqual(result, {
+    placeId: 1234,
+    displayName: "Gurugram, Haryana, India",
+    lat: 28.4595,
+    lon: 77.0266,
   });
 });
 
@@ -77,4 +103,3 @@ test("overpassAdapter maps network failures to 503", async (t) => {
     (err) => err.statusCode === 503 && err.message === "Nearby places are temporarily unavailable"
   );
 });
-

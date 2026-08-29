@@ -208,6 +208,12 @@ function SmartTravelDashboard() {
               onImportClick={handleImportClick}
               onSaveOffline={offline.saveCurrentTripToDevice}
               onDownloadPack={offline.downloadCurrentTripPack}
+              locationStatus={planner.locationStatus}
+              locationMessage={planner.locationMessage}
+              recentSearches={planner.recentSearches}
+              clearRecentSearches={planner.clearRecentSearches}
+              detectCurrentLocation={planner.detectCurrentLocation}
+              addRecentSearch={planner.addRecentSearch}
             />
           </div>
         </section>

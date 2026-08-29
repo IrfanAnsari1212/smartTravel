@@ -1,4 +1,4 @@
-const { queryNominatim } = require("../adapters/nominatimAdapter");
+const { queryNominatim, reverseNominatim } = require("../adapters/nominatimAdapter");
 const { geocodeCache } = require("./cacheService");
 
 const searchPlaces = async (query) => {
@@ -33,7 +33,20 @@ const getCoordinates = async (place) => {
   };
 };
 
+const reverseGeocode = async (lat, lon) => {
+  const cacheKey = `rev:${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+  const cached = geocodeCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const result = await reverseNominatim(lat, lon);
+  geocodeCache.set(cacheKey, result);
+  return result;
+};
+
 module.exports = {
   getCoordinates,
+  reverseGeocode,
   searchPlaces,
 };

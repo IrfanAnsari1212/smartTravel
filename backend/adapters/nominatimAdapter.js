@@ -41,8 +41,31 @@ const queryNominatim = async (query) => {
   });
 };
 
-module.exports = {
-  queryNominatim,
-  normalizePlace,
+const reverseNominatim = async (lat, lon) => {
+  return withRetry(async () => {
+    const response = await axios.get(`${SEARCH_BASE_URL}/reverse`, {
+      headers: REQUEST_HEADERS,
+      params: {
+        lat,
+        lon,
+        format: "jsonv2",
+        addressdetails: 1,
+      },
+      timeout: SEARCH_TIMEOUT_MS,
+    });
+
+    if (!response.data || response.data.error) {
+      const error = new Error(response.data?.error || `No address found at coordinates [${lat}, ${lon}]`);
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return normalizePlace(response.data);
+  });
 };
 
+module.exports = {
+  queryNominatim,
+  reverseNominatim,
+  normalizePlace,
+};
