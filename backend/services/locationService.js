@@ -1,37 +1,20 @@
-const axios = require("axios");
-
-const SEARCH_BASE_URL =
-  process.env.NOMINATIM_BASE_URL || "https://nominatim.openstreetmap.org";
-const SEARCH_TIMEOUT_MS = Number(process.env.NOMINATIM_TIMEOUT_MS) || 8000;
-const REQUEST_HEADERS = {
-  "User-Agent": process.env.NOMINATIM_USER_AGENT || "travel-platform/1.0",
-  Accept: "application/json",
-};
-
-const normalizePlace = (place) => ({
-  placeId: place.place_id,
-  displayName: place.display_name,
-  lat: Number(place.lat),
-  lon: Number(place.lon),
-});
+const { queryNominatim } = require("../adapters/nominatimAdapter");
+const { geocodeCache } = require("./cacheService");
 
 const searchPlaces = async (query) => {
-  if (!query?.trim()) {
+  const normalizedQuery = query?.trim()?.toLowerCase();
+  if (!normalizedQuery) {
     return [];
   }
 
-  const response = await axios.get(`${SEARCH_BASE_URL}/search`, {
-    headers: REQUEST_HEADERS,
-    params: {
-      q: query.trim(),
-      format: "jsonv2",
-      limit: 5,
-      addressdetails: 1,
-    },
-    timeout: SEARCH_TIMEOUT_MS,
-  });
+  const cached = geocodeCache.get(normalizedQuery);
+  if (cached) {
+    return cached;
+  }
 
-  return response.data.map(normalizePlace);
+  const results = await queryNominatim(normalizedQuery);
+  geocodeCache.set(normalizedQuery, results);
+  return results;
 };
 
 const getCoordinates = async (place) => {

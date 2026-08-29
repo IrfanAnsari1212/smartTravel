@@ -38,9 +38,9 @@ function FitBounds({ positions, currentLocation, shouldFollowUser, focusedPlace 
   return null;
 }
 
-function buildOfflinePath(positions) {
+function buildOfflinePath(positions, places = []) {
   if (!positions.length) {
-    return { path: "", markers: [], viewBox: "0 0 900 500" };
+    return { path: "", markers: [], placePoints: [], viewBox: "0 0 900 500" };
   }
 
   const width = 900;
@@ -69,17 +69,26 @@ function buildOfflinePath(positions) {
     .map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`)
     .join(" ");
 
+  const placePoints = places
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      point: toPoint([p.lat, p.lon]),
+    }));
+
   return {
     path,
     markers: svgPoints,
+    placePoints,
     viewBox: `0 0 ${width} ${height}`,
   };
 }
 
 function OfflineRoutePreview({ route, positions, places, currentLocation, isNavigating }) {
-  const { path, markers, viewBox } = useMemo(
-    () => buildOfflinePath(positions),
-    [positions]
+  const { path, markers, placePoints, viewBox } = useMemo(
+    () => buildOfflinePath(positions, places),
+    [positions, places]
   );
 
   if (!route || !positions.length) {
@@ -142,26 +151,18 @@ function OfflineRoutePreview({ route, positions, places, currentLocation, isNavi
               />
             )}
 
-            {places.slice(0, 10).map((place, index) => {
-              const routePoint = markers[Math.floor(((index + 1) / 11) * markers.length)];
-
-              if (!routePoint) {
-                return null;
-              }
-
-              return (
-                <g key={place.id || `${place.name}-${index}`}>
-                  <circle
-                    cx={routePoint[0]}
-                    cy={routePoint[1]}
-                    r="5"
-                    fill="#f59e0b"
-                    stroke="#fef3c7"
-                    strokeWidth="2"
-                  />
-                </g>
-              );
-            })}
+            {placePoints.slice(0, 15).map((place, index) => (
+              <g key={place.id || `${place.name}-${index}`}>
+                <circle
+                  cx={place.point[0]}
+                  cy={place.point[1]}
+                  r="5"
+                  fill="#f59e0b"
+                  stroke="#fef3c7"
+                  strokeWidth="2"
+                />
+              </g>
+            ))}
           </svg>
 
           {isNavigating && currentLocation && (
@@ -207,10 +208,14 @@ export default function MapView({
   isNavigating,
   focusedPlace,
 }) {
-  const positions = route
-    ? route.geometry.coordinates.map((coord) => [coord[1], coord[0]])
-    : [];
-  const places = route?.places || [];
+  const positions = useMemo(
+    () =>
+      route?.geometry?.coordinates
+        ? route.geometry.coordinates.map((coord) => [coord[1], coord[0]])
+        : [],
+    [route]
+  );
+  const places = useMemo(() => route?.places || [], [route]);
 
   if (isOffline && !hasOfflineMap) {
     return (
@@ -285,3 +290,4 @@ export default function MapView({
     </div>
   );
 }
+

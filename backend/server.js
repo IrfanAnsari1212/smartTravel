@@ -10,6 +10,7 @@ require("dotenv").config();
 
 const connectDB = require("./config/db");
 const { getAllowedOrigins, validateEnvironment } = require("./config/env");
+const requestLogger = require("./middleware/requestLogger");
 const authRoutes = require("./routes/authRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const tripRoutes = require("./routes/tripRoutes");
@@ -23,6 +24,7 @@ const developmentOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 const trustedOrigins = allowedOrigins.length ? allowedOrigins : developmentOrigins;
 
 app.disable("x-powered-by");
+app.use(requestLogger);
 app.use(helmet());
 app.use(
   cors({
@@ -51,19 +53,32 @@ app.use(
 );
 
 app.get("/api/health", (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  let status = "unhealthy";
+  let database = "disconnected";
+
+  if (dbState === 1) {
+    status = "healthy";
+    database = "connected";
+  } else if (dbState === 2 || dbState === 3) {
+    status = "degraded";
+    database = "connecting";
+  }
+
   res.json({
-    status: "ok",
+    status,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    database,
+    version: "1.0.0",
   });
 });
 
 app.get("/api/ready", (req, res) => {
   if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({ status: "unavailable", database: "disconnected" });
+    return res.status(503).json({ status: "unhealthy", database: "disconnected" });
   }
-  return res.json({ status: "ready", database: "connected" });
+  return res.json({ status: "healthy", database: "connected" });
 });
 
 app.use("/api/auth", authRoutes);
