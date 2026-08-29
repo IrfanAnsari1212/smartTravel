@@ -8,6 +8,8 @@ const REQUEST_HEADERS = {
   Accept: "application/json",
 };
 
+const { geocodeCache } = require("./cacheService");
+
 const normalizePlace = (place) => ({
   placeId: place.place_id,
   displayName: place.display_name,
@@ -16,14 +18,20 @@ const normalizePlace = (place) => ({
 });
 
 const searchPlaces = async (query) => {
-  if (!query?.trim()) {
+  const normalizedQuery = query?.trim()?.toLowerCase();
+  if (!normalizedQuery) {
     return [];
+  }
+
+  const cached = geocodeCache.get(normalizedQuery);
+  if (cached) {
+    return cached;
   }
 
   const response = await axios.get(`${SEARCH_BASE_URL}/search`, {
     headers: REQUEST_HEADERS,
     params: {
-      q: query.trim(),
+      q: normalizedQuery,
       format: "jsonv2",
       limit: 5,
       addressdetails: 1,
@@ -31,7 +39,9 @@ const searchPlaces = async (query) => {
     timeout: SEARCH_TIMEOUT_MS,
   });
 
-  return response.data.map(normalizePlace);
+  const results = response.data.map(normalizePlace);
+  geocodeCache.set(normalizedQuery, results);
+  return results;
 };
 
 const getCoordinates = async (place) => {
