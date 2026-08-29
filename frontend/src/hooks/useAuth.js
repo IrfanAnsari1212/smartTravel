@@ -19,7 +19,14 @@ export function useAuth() {
       setSession(nextSession);
       setAuthPassword("");
     } catch (error) {
-      setAuthError(error.response?.data?.message || "Unable to sign in right now.");
+      const fieldErrors = error.response?.data?.fields
+        ?.map((f) => f.message)
+        ?.join(". ");
+      setAuthError(
+        fieldErrors ||
+          error.response?.data?.message ||
+          "Unable to complete authentication. Please ensure the backend server is running."
+      );
     } finally {
       setAuthLoading(false);
     }
