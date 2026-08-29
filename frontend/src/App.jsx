@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import AuthBar from "./components/common/AuthBar";
 import HeroHeader from "./components/common/HeroHeader";
@@ -11,10 +11,11 @@ import LiveNavigationPanel from "./components/route/LiveNavigationPanel";
 import RoutePlannerForm from "./components/route/RoutePlannerForm";
 import TripSummaryPanel from "./components/route/TripSummaryPanel";
 import RecommendedStops from "./components/stops/RecommendedStops";
-import AITravelAssistant from "./components/ai/AITravelAssistant";
-import EmergencyHubModal from "./components/emergency/EmergencyHubModal";
-import HotelSearchModal from "./components/hotels/HotelSearchModal";
 import MultiDayItineraryPanel from "./components/itinerary/MultiDayItineraryPanel";
+
+const AITravelAssistant = lazy(() => import("./components/ai/AITravelAssistant"));
+const EmergencyHubModal = lazy(() => import("./components/emergency/EmergencyHubModal"));
+const HotelSearchModal = lazy(() => import("./components/hotels/HotelSearchModal"));
 
 import { AuthProvider } from "./context/AuthProvider";
 import { useAuthContext } from "./context/useAuthContext";
@@ -380,23 +381,28 @@ function SmartTravelDashboard() {
       </button>
     </nav>
 
-      <EmergencyHubModal
-        isOpen={isEmergencyOpen}
-        onClose={() => setIsEmergencyOpen(false)}
-        currentLocation={navigation.navigationState.currentLocation}
-        route={planner.route}
-        session={auth.session}
-      />
+      <Suspense fallback={null}>
+        {isEmergencyOpen && (
+          <EmergencyHubModal
+            isOpen={isEmergencyOpen}
+            onClose={() => setIsEmergencyOpen(false)}
+            currentLocation={navigation.navigationState.currentLocation}
+            route={planner.route}
+            session={auth.session}
+          />
+        )}
 
-      <HotelSearchModal
-        isOpen={isHotelsOpen}
-        onClose={() => setIsHotelsOpen(false)}
-        currentLocation={navigation.navigationState.currentLocation}
-        route={planner.route}
-      />
+        {isHotelsOpen && (
+          <HotelSearchModal
+            isOpen={isHotelsOpen}
+            onClose={() => setIsHotelsOpen(false)}
+            currentLocation={navigation.navigationState.currentLocation}
+            route={planner.route}
+          />
+        )}
 
-      {/* Floating AI Travel Assistant */}
-      <AITravelAssistant route={planner.route} />
+        <AITravelAssistant route={planner.route} />
+      </Suspense>
     </div>
   );
 }
