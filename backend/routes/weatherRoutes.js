@@ -10,3 +10,4 @@ router.post("/point", getPointWeatherController);
 router.post("/route", getRouteWeatherController);
 
 module.exports = router;
+

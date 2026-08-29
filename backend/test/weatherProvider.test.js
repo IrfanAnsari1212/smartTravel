@@ -54,3 +54,4 @@ test("generateWeatherWarnings flags high wind gusts", () => {
   assert.ok(windWarn);
   assert.equal(windWarn.severity, "high");
 });
+

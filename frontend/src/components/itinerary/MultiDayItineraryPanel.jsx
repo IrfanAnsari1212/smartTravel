@@ -506,6 +506,7 @@ export default function MultiDayItineraryPanel({
                           </div>
                         ) : (
                           <>
+                            <div className="flex items-center gap-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <h4 className="font-bold text-xs text-white">{stop.name}</h4>
                               {stop.category && (

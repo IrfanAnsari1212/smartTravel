@@ -17,3 +17,4 @@ export const fetchRouteWeather = async ({ start, destination, waypoints = [], st
   });
   return response.data;
 };
+
