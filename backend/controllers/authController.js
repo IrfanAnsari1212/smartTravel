@@ -8,12 +8,17 @@ const credentialsSchema = z.object({
   password: z.string().min(12).max(128),
 });
 
-const createSessionResponse = (user) => ({
-  token: jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
-    algorithm: "HS256", subject: user.id, expiresIn: "7d",
-  }),
-  user: { id: user.id, email: user.email },
-});
+const createSessionResponse = (user) => {
+  const userId = String(user.id || user._id);
+  return {
+    token: jwt.sign({ id: userId, email: user.email }, process.env.JWT_SECRET, {
+      algorithm: "HS256",
+      subject: userId,
+      expiresIn: "7d",
+    }),
+    user: { id: userId, email: user.email },
+  };
+};
 
 const register = async (req, res, next) => {
   try {
