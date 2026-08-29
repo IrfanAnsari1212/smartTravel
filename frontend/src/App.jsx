@@ -281,6 +281,7 @@ function SmartTravelDashboard() {
                       isOnline={isOnline}
                       session={auth.session}
                       onItineraryUpdated={planner.loadTripHistory}
+                      onRecalculateRoute={planner.recalculateOptimizedRoute}
                     />
 
                     <EmergencyPanel

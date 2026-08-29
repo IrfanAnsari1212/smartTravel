@@ -6,6 +6,7 @@ export default function MultiDayItineraryPanel({
   isOnline,
   session,
   onItineraryUpdated,
+  onRecalculateRoute,
 }) {
   const [days, setDays] = useState([]);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -238,7 +239,18 @@ export default function MultiDayItineraryPanel({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {onRecalculateRoute && (
+            <button
+              type="button"
+              onClick={() => onRecalculateRoute({ optimize: true })}
+              className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30 transition"
+            >
+              <span>⚡</span>
+              <span>Recalculate & Optimize</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleSaveItinerary}

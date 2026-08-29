@@ -29,3 +29,12 @@ export const updateTripItineraryRequest = async (tripId, days) => {
   );
   return response.data;
 };
+
+export const recalculateOptimizedRouteRequest = async (payload) => {
+  const response = await axios.post(
+    `${API_BASE_URL}/trip/recalculate`,
+    payload,
+    authConfig()
+  );
+  return response.data;
+};

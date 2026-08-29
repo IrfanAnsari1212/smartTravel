@@ -7,7 +7,7 @@ const {
   listTrips,
   toggleFavorite,
 } = require("../services/tripStore");
-const { optimizeWaypoints } = require("../utils/routeOptimizer");
+const { optimizeWaypoints, calculateRouteSegments } = require("../utils/routeOptimizer");
 const { buildInitialMultiDayItinerary, recalculateDaySchedule } = require("../utils/itineraryEngine");
 const Trip = require("../models/Trip");
 
@@ -265,9 +265,56 @@ const updateTripItinerary = async (req, res, next) => {
   }
 };
 
+const recalculateRoute = async (req, res, next) => {
+  try {
+    const { start, destination, waypoints = [], optimize = false, avoidTolls = false, avoidHighways = false } =
+      planTripSchema.parse(req.body);
+
+    const [startCoords, destCoords, ...waypointCoords] = await Promise.all([
+      getCoordinates(start),
+      getCoordinates(destination),
+      ...waypoints.map((w) => getCoordinates(w)),
+    ]);
+
+    const orderedWaypoints =
+      optimize && waypointCoords.length > 1
+        ? optimizeWaypoints(startCoords, waypointCoords, destCoords)
+        : waypointCoords;
+
+    const fullRoutePoints = [startCoords, ...orderedWaypoints, destCoords];
+    const route = await getRoute(fullRoutePoints, {
+      avoidTolls: Boolean(avoidTolls),
+      avoidHighways: Boolean(avoidHighways),
+    });
+
+    const segments = calculateRouteSegments(fullRoutePoints);
+    const days = buildInitialMultiDayItinerary(startCoords, destCoords, orderedWaypoints, []);
+
+    res.json({
+      start: startCoords,
+      destination: destCoords,
+      waypoints: orderedWaypoints,
+      options: {
+        avoidTolls: Boolean(avoidTolls),
+        avoidHighways: Boolean(avoidHighways),
+        optimized: Boolean(optimize && waypointCoords.length > 1),
+      },
+      distance: route.distance,
+      duration: route.duration,
+      geometry: route.geometry,
+      steps: route.steps || [],
+      segments,
+      days,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   planTrip,
   getTripHistory,
   updateFavoriteTrip,
   updateTripItinerary,
+  recalculateRoute,
 };

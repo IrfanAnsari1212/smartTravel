@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { getHaversineDistance, optimizeWaypoints } = require("../utils/routeOptimizer");
+const { getHaversineDistance, optimizeWaypoints, calculateRouteSegments } = require("../utils/routeOptimizer");
 
 test("getHaversineDistance computes accurate geographical distances", () => {
   const delhi = { lat: 28.6139, lon: 77.2090 };
@@ -34,5 +34,27 @@ test("optimizeWaypoints handles single or empty waypoints safely", () => {
   assert.deepEqual(optimizeWaypoints(start, [], dest), []);
   const single = [{ name: "Mathura", lat: 27.49, lon: 77.67 }];
   assert.deepEqual(optimizeWaypoints(start, single, dest), single);
+});
+
+test("calculateRouteSegments computes distances, durations, and ETAs per segment", () => {
+  const points = [
+    { name: "Delhi", lat: 28.6139, lon: 77.209 },
+    { name: "Mathura", lat: 27.4924, lon: 77.6737 },
+    { name: "Agra", lat: 27.1767, lon: 78.0081 },
+  ];
+
+  const segments = calculateRouteSegments(points, 9 * 60);
+
+  assert.equal(segments.length, 2);
+  assert.equal(segments[0].from.name, "Delhi");
+  assert.equal(segments[0].to.name, "Mathura");
+  assert.ok(segments[0].distanceKm > 100);
+  assert.ok(segments[0].durationMinutes > 0);
+  assert.equal(segments[0].from.departureTime, "09:00");
+  assert.ok(segments[0].to.estimatedArrival);
+
+  assert.equal(segments[1].from.name, "Mathura");
+  assert.equal(segments[1].to.name, "Agra");
+  assert.ok(segments[1].cumulativeDistanceKm > segments[0].distanceKm);
 });
 

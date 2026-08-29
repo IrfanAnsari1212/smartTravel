@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { reverseGeocodePlace, searchPlaces } from "../services/locationService";
-import { getTripHistory, planTripRequest, toggleFavoriteTrip } from "../services/tripService";
+import {
+  getTripHistory,
+  planTripRequest,
+  toggleFavoriteTrip,
+  recalculateOptimizedRouteRequest,
+} from "../services/tripService";
 import {
   ALL_FILTER_IDS,
   routeFromOfflineTrip,
@@ -345,6 +350,35 @@ export function useTripPlanner(session, isOnline) {
     setFocusedSafetyPlace(null);
   };
 
+  const recalculateOptimizedRoute = async (customOptions = {}) => {
+    if (!start.trim() || !destination.trim() || !isOnline) return;
+
+    try {
+      setLoading(true);
+      const validWaypoints = waypoints.filter((w) => w && w.trim().length > 1);
+
+      const updated = await recalculateOptimizedRouteRequest({
+        start,
+        destination,
+        waypoints: validWaypoints,
+        optimize: customOptions.optimize ?? optimize,
+        avoidTolls: customOptions.avoidTolls ?? avoidTolls,
+        avoidHighways: customOptions.avoidHighways ?? avoidHighways,
+      });
+
+      setRoute((prev) => ({
+        ...prev,
+        ...updated,
+        places: prev?.places || [],
+        emergencyServices: prev?.emergencyServices || {},
+      }));
+    } catch (err) {
+      console.error("Route recalculation failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     start,
     setStart,
@@ -387,6 +421,7 @@ export function useTripPlanner(session, isOnline) {
     setDestSuggestions,
     toggleFilter,
     planTrip,
+    recalculateOptimizedRoute,
     handleFavoriteToggle,
     selectHistoryTrip,
     loadOfflineTripIntoPlanner,
