@@ -1,4 +1,3 @@
-const dns = require("dns");
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
@@ -8,13 +7,6 @@ const { rateLimit } = require("express-rate-limit");
 const mongoose = require("mongoose");
 const { ZodError } = require("zod");
 require("dotenv").config();
-
-try {
-  dns.setDefaultResultOrder("ipv4first");
-  dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
-} catch (dnsErr) {
-  console.warn("DNS setup warning:", dnsErr.message);
-}
 
 const connectDB = require("./config/db");
 const { getAllowedOrigins, validateEnvironment } = require("./config/env");
