@@ -57,6 +57,7 @@ const tripSchema = new mongoose.Schema(
       fuel: { type: [placeSchema], default: [] },
       hotel: { type: [placeSchema], default: [] },
       hospital: { type: [placeSchema], default: [] },
+      police: { type: [placeSchema], default: [] },
       mechanic: { type: [placeSchema], default: [] },
     },
     placeLookup: {
