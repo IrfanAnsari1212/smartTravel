@@ -2,9 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const { rateLimit } = require("express-rate-limit");
+const mongoose = require("mongoose");
+const { ZodError } = require("zod");
 require("dotenv").config();
 
 const connectDB = require("./config/db");
+const { getAllowedOrigins, validateEnvironment } = require("./config/env");
+const authRoutes = require("./routes/authRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 
@@ -12,41 +18,61 @@ const app = express();
 const frontendDistPath = path.join(__dirname, "..", "frontend", "dist");
 const frontendIndexPath = path.join(frontendDistPath, "index.html");
 const hasFrontendBuild = fs.existsSync(frontendIndexPath);
-const allowedOrigins = (process.env.CORS_ORIGIN || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = getAllowedOrigins();
+const developmentOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const trustedOrigins = allowedOrigins.length ? allowedOrigins : developmentOrigins;
 
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
-
+app.disable("x-powered-by");
+app.use(helmet());
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+      if (!origin || trustedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
 
-      callback(new Error("Origin not allowed by CORS"));
+      const error = new Error("Origin not allowed by CORS");
+      error.statusCode = 403;
+      callback(error);
     },
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: "100kb" }));
+app.use(
+  "/api",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: process.env.NODE_ENV === "production" ? 100 : 500,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { message: "Too many requests. Please try again later." },
+  })
+);
 
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    database: process.env.MONGO_URI ? "configured" : "fallback-memory",
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
 });
 
+app.get("/api/ready", (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ status: "unavailable", database: "disconnected" });
+  }
+  return res.json({ status: "ready", database: "connected" });
+});
+
+app.use("/api/auth", authRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/trip", tripRoutes);
+
+app.use("/api", (req, res) => {
+  res.status(404).json({ message: "API route not found" });
+});
 
 if (hasFrontendBuild) {
   app.use(express.static(frontendDistPath));
@@ -61,17 +87,27 @@ if (hasFrontendBuild) {
 }
 
 app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || (err instanceof ZodError ? 400 : 500);
+  const message =
+    err instanceof ZodError
+      ? "The request contains invalid data"
+      : statusCode < 500
+        ? err.message
+        : "Internal Server Error";
   console.error("GLOBAL ERROR:", err.message);
 
-  res.status(err.statusCode || 500).json({
-    message: err.statusCode ? err.message : "Internal Server Error",
-    error: err.message,
+  res.status(statusCode).json({
+    message,
+    ...(err instanceof ZodError && {
+      fields: err.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+    }),
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  validateEnvironment();
   await connectDB();
 
   app.listen(PORT, () => {

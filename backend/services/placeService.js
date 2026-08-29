@@ -1,16 +1,17 @@
 const axios = require("axios");
 
 const DEFAULT_TYPES = ["restaurant", "hotel", "fuel"];
+const ALL_TYPES = ["restaurant", "hotel", "fuel", "hospital", "mechanic"];
 const OVERPASS_URL =
   process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter";
 const OVERPASS_TIMEOUT_MS = Number(process.env.OVERPASS_TIMEOUT_MS) || 8000;
 
 const overpassFragments = {
-  restaurant: 'node["amenity"="restaurant"]',
-  hotel: 'node["tourism"="hotel"]',
-  fuel: 'node["amenity"="fuel"]',
-  hospital: 'node["amenity"="hospital"]',
-  mechanic: 'node["shop"="car_repair"]',
+  restaurant: 'nwr["amenity"="restaurant"]',
+  hotel: 'nwr["tourism"="hotel"]',
+  fuel: 'nwr["amenity"="fuel"]',
+  hospital: 'nwr["amenity"="hospital"]',
+  mechanic: 'nwr["shop"="car_repair"]',
 };
 
 const formatTagValue = (value) =>
@@ -78,8 +79,8 @@ const formatPlace = (place) => ({
   id: String(place.id),
   name: place.tags?.name || "Unnamed Place",
   category: getPlaceCategory(place.tags),
-  lat: Number(place.lat),
-  lon: Number(place.lon),
+  lat: Number(place.lat ?? place.center?.lat),
+  lon: Number(place.lon ?? place.center?.lon),
   address: [
     place.tags?.["addr:housenumber"],
     place.tags?.["addr:street"],
@@ -109,28 +110,31 @@ const getPlacesNearby = async (lat, lon, placeTypes = DEFAULT_TYPES) => {
       (
         ${queryParts.join("\n")}
       );
-      out;
+      out center tags;
     `;
 
-    const response = await axios.post(OVERPASS_URL, query, {
+    const response = await axios.post(OVERPASS_URL, new URLSearchParams({ data: query }), {
       timeout: OVERPASS_TIMEOUT_MS,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
     const deduped = new Map();
 
-    response.data.elements.forEach((place) => {
+    (response.data?.elements || []).forEach((place) => {
       const formatted = formatPlace(place);
 
-      if (!deduped.has(formatted.id)) {
+      if (Number.isFinite(formatted.lat) && Number.isFinite(formatted.lon) && !deduped.has(formatted.id)) {
         deduped.set(formatted.id, formatted);
       }
     });
 
     return Array.from(deduped.values());
   } catch (error) {
-    console.log(`Places API failed for [${lat}, ${lon}]:`, error.message);
-    return [];
+    const providerError = new Error("Nearby places are temporarily unavailable");
+    providerError.statusCode = 503;
+    providerError.cause = error;
+    throw providerError;
   }
 };
 
-module.exports = { getPlacesNearby };
+module.exports = { ALL_TYPES, getPlacesNearby };

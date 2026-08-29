@@ -29,6 +29,12 @@ const placeSchema = new mongoose.Schema(
 
 const tripSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     startQuery: { type: String, required: true },
     destinationQuery: { type: String, required: true },
     start: { type: pointSchema, required: true },
@@ -53,11 +59,17 @@ const tripSchema = new mongoose.Schema(
       hospital: { type: [placeSchema], default: [] },
       mechanic: { type: [placeSchema], default: [] },
     },
+    placeLookup: {
+      status: { type: String, enum: ["available", "unavailable"], default: "available" },
+      failedPoints: { type: Number, default: 0 },
+    },
     favorite: { type: Boolean, default: false },
   },
   {
     timestamps: true,
   }
 );
+
+tripSchema.index({ userId: 1, favorite: -1, createdAt: -1 });
 
 module.exports = mongoose.models.Trip || mongoose.model("Trip", tripSchema);

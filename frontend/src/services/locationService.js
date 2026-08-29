@@ -7,14 +7,9 @@ export const searchPlaces = async (query) => {
     return [];
   }
 
-  try {
-    const response = await axios.get(`${API_BASE_URL}/locations/search`, {
-      params: { q: query.trim() },
-    });
+  const response = await axios.get(`${API_BASE_URL}/locations/search`, {
+    params: { q: query.trim() },
+  });
 
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (error) {
-    console.error(error);
-    return [];
-  }
+  return Array.isArray(response.data) ? response.data : [];
 };
