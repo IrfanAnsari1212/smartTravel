@@ -1,10 +1,6 @@
 const trimTrailingSlash = (value) => value.replace(/\/+$/, "");
 
 const getDefaultApiBaseUrl = () => {
-  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
-    return "/_/backend/api";
-  }
-
   return "/api";
 };
 
