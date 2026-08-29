@@ -1,14 +1,22 @@
 export const PLACE_FILTERS = [
-  { id: "restaurant", label: "Restaurants" },
-  { id: "hotel", label: "Hotels" },
-  { id: "fuel", label: "Fuel" },
+  { id: "attraction", label: "Attractions", icon: "🏛️" },
+  { id: "restaurant", label: "Food & Cafes", icon: "🍽️" },
+  { id: "hotel", label: "Hotels & Stays", icon: "🏨" },
+  { id: "fuel", label: "Fuel & EV", icon: "⛽" },
+  { id: "hospital", label: "Hospitals", icon: "🏥" },
+  { id: "police", label: "Police", icon: "👮" },
+  { id: "mechanic", label: "Mechanics", icon: "🔧" },
+  { id: "pharmacy", label: "Pharmacies", icon: "💊" },
+  { id: "atm", label: "ATMs", icon: "🏧" },
+  { id: "parking", label: "Parking", icon: "🅿️" },
 ];
 
 export const EMERGENCY_SERVICE_CONFIG = [
-  { id: "fuel", label: "Fuel", emptyLabel: "No fuel stop saved" },
-  { id: "hotel", label: "Hotel", emptyLabel: "No hotel saved" },
-  { id: "hospital", label: "Hospital", emptyLabel: "No hospital saved" },
-  { id: "mechanic", label: "Mechanic", emptyLabel: "No mechanic saved" },
+  { id: "fuel", label: "Fuel & EV", emptyLabel: "No fuel stations saved" },
+  { id: "hotel", label: "Hotel & Stays", emptyLabel: "No hotels saved" },
+  { id: "hospital", label: "Hospital & Medical", emptyLabel: "No hospitals saved" },
+  { id: "police", label: "Police Station", emptyLabel: "No police stations saved" },
+  { id: "mechanic", label: "Car Repair & Mechanic", emptyLabel: "No mechanics saved" },
 ];
 
 export const ALL_FILTER_IDS = PLACE_FILTERS.map((filter) => filter.id);
@@ -35,6 +43,7 @@ export const normalizeEmergencyServices = (services = {}) => ({
   fuel: Array.isArray(services.fuel) ? services.fuel : [],
   hotel: Array.isArray(services.hotel) ? services.hotel : [],
   hospital: Array.isArray(services.hospital) ? services.hospital : [],
+  police: Array.isArray(services.police) ? services.police : [],
   mechanic: Array.isArray(services.mechanic) ? services.mechanic : [],
 });
 
@@ -82,7 +91,7 @@ export const getNearestPlace = (places, referencePoint) => {
       ...place,
       distanceFromReference: getDistanceBetweenPoints(referencePoint, place),
     }))
-    .sort((left, right) => left.distanceFromReference - right.distanceFromReference)[0];
+    .sort((left, right) => (left.distanceFromReference ?? Infinity) - (right.distanceFromReference ?? Infinity))[0];
 };
 
 export const tripFromHistory = (trip) => ({
@@ -92,6 +101,7 @@ export const tripFromHistory = (trip) => ({
   distance: trip.distance,
   duration: trip.duration,
   geometry: trip.geometry,
+  steps: trip.steps || [],
   places: trip.places,
   emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
   filters: trip.filters,
@@ -105,9 +115,9 @@ export const routeFromOfflineTrip = (trip) => ({
   distance: trip.distance,
   duration: trip.duration,
   geometry: trip.geometry,
+  steps: trip.steps || [],
   places: trip.places,
   emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
   filters: trip.filters,
   placeLookup: trip.placeLookup,
 });
-

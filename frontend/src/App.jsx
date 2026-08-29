@@ -11,6 +11,7 @@ import LiveNavigationPanel from "./components/route/LiveNavigationPanel";
 import RoutePlannerForm from "./components/route/RoutePlannerForm";
 import TripSummaryPanel from "./components/route/TripSummaryPanel";
 import RecommendedStops from "./components/stops/RecommendedStops";
+import AITravelAssistant from "./components/ai/AITravelAssistant";
 
 import { AuthProvider } from "./context/AuthProvider";
 import { useAuthContext } from "./context/useAuthContext";
@@ -208,6 +209,12 @@ function SmartTravelDashboard() {
               onImportClick={handleImportClick}
               onSaveOffline={offline.saveCurrentTripToDevice}
               onDownloadPack={offline.downloadCurrentTripPack}
+              locationStatus={planner.locationStatus}
+              locationMessage={planner.locationMessage}
+              recentSearches={planner.recentSearches}
+              clearRecentSearches={planner.clearRecentSearches}
+              detectCurrentLocation={planner.detectCurrentLocation}
+              addRecentSearch={planner.addRecentSearch}
             />
           </div>
         </section>
@@ -237,9 +244,19 @@ function SmartTravelDashboard() {
                   <>
                     <LiveNavigationPanel
                       navigationState={navigation.navigationState}
+                      activeStepIndex={navigation.activeStepIndex}
+                      steps={navigation.steps}
+                      isSimulating={navigation.isSimulating}
+                      simulationSpeedMultiplier={navigation.simulationSpeedMultiplier}
+                      progressPercent={navigation.progressPercent}
+                      distanceToNextManeuver={navigation.distanceToNextManeuver}
+                      liveDistanceToDestination={navigation.liveDistanceToDestination}
+                      setSimulationSpeedMultiplier={navigation.setSimulationSpeedMultiplier}
                       startTrip={() => navigation.startTrip(planner.setErrorMessage)}
                       stopTrip={navigation.stopTrip}
-                      liveDistanceToDestination={navigation.liveDistanceToDestination}
+                      startSimulation={navigation.startSimulation}
+                      pauseSimulation={navigation.pauseSimulation}
+                      resetSimulation={navigation.resetSimulation}
                     />
 
                     <EmergencyPanel
@@ -277,11 +294,22 @@ function SmartTravelDashboard() {
             <OfflineTripLibrary
               offlineTrips={offline.offlineTrips}
               offlineMapPacks={offline.offlineMapPacks}
+              syncingTripId={offline.syncingTripId}
+              isOnline={isOnline}
               onOpenTrip={handleOpenOfflineTrip}
               onExportTrip={offline.downloadCurrentTripPack}
+              onExportAllTrips={offline.handleExportAllTrips}
               onDeleteTrip={offline.deleteOfflineTrip}
               onRemoveMapPack={(id) =>
                 offline.handleRemoveOfflineMapArea(id, planner.setErrorMessage)
+              }
+              onSyncTripToCloud={(trip) =>
+                offline.syncTripToCloud(
+                  trip,
+                  auth.session,
+                  () => planner.loadTripHistory(),
+                  (msg) => planner.setErrorMessage(msg)
+                )
               }
             />
 
@@ -296,6 +324,9 @@ function SmartTravelDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Floating AI Travel Assistant */}
+      <AITravelAssistant route={planner.route} />
     </div>
   );
 }

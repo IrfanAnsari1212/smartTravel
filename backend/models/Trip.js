@@ -27,6 +27,20 @@ const placeSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const stepSchema = new mongoose.Schema(
+  {
+    index: Number,
+    instruction: String,
+    type: String,
+    modifier: String,
+    distance: Number,
+    duration: Number,
+    roadName: String,
+    location: { type: [Number], default: [] }, // [lon, lat]
+  },
+  { _id: false }
+);
+
 const tripSchema = new mongoose.Schema(
   {
     userId: {
@@ -52,11 +66,13 @@ const tripSchema = new mongoose.Schema(
         default: [],
       },
     },
+    steps: { type: [stepSchema], default: [] },
     places: { type: [placeSchema], default: [] },
     emergencyServices: {
       fuel: { type: [placeSchema], default: [] },
       hotel: { type: [placeSchema], default: [] },
       hospital: { type: [placeSchema], default: [] },
+      police: { type: [placeSchema], default: [] },
       mechanic: { type: [placeSchema], default: [] },
     },
     placeLookup: {

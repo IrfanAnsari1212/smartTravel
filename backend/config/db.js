@@ -1,4 +1,12 @@
+const dns = require("dns");
 const mongoose = require("mongoose");
+
+// On Windows, default ISP/router DNS often fails SRV records for mongodb+srv://
+try {
+  dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
+} catch (dnsErr) {
+  console.warn("DNS server setup notice:", dnsErr.message);
+}
 
 const connectDB = async () => {
   try {

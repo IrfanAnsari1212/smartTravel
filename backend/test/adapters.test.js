@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const axios = require("axios");
 
-const { queryNominatim } = require("../adapters/nominatimAdapter");
+const { queryNominatim, reverseNominatim } = require("../adapters/nominatimAdapter");
 const { queryOsrmRoute } = require("../adapters/osrmAdapter");
 const { queryOverpass } = require("../adapters/overpassAdapter");
 
@@ -34,7 +34,33 @@ test("nominatimAdapter returns normalized place objects", async (t) => {
   });
 });
 
-test("osrmAdapter parses route response or throws 404", async (t) => {
+test("reverseNominatim returns normalized reverse geocoded place", async (t) => {
+  const originalGet = axios.get;
+  t.after(() => { axios.get = originalGet; });
+
+  axios.get = async (url, config) => {
+    assert.equal(config.params.lat, 28.4595);
+    assert.equal(config.params.lon, 77.0266);
+    return {
+      data: {
+        place_id: 1234,
+        display_name: "Gurugram, Haryana, India",
+        lat: "28.4595",
+        lon: "77.0266",
+      },
+    };
+  };
+
+  const result = await reverseNominatim(28.4595, 77.0266);
+  assert.deepEqual(result, {
+    placeId: 1234,
+    displayName: "Gurugram, Haryana, India",
+    lat: 28.4595,
+    lon: 77.0266,
+  });
+});
+
+test("osrmAdapter parses route response and extracts turn-by-turn steps", async (t) => {
   const originalGet = axios.get;
   t.after(() => { axios.get = originalGet; });
 
@@ -48,6 +74,30 @@ test("osrmAdapter parses route response or throws 404", async (t) => {
             coordinates: [[77.2, 28.6], [72.8, 19.0]],
             type: "LineString",
           },
+          legs: [
+            {
+              steps: [
+                {
+                  distance: 500,
+                  duration: 60,
+                  name: "Outer Ring Road",
+                  maneuver: { type: "depart", modifier: "straight", location: [77.2, 28.6] },
+                },
+                {
+                  distance: 1200,
+                  duration: 120,
+                  name: "NH44",
+                  maneuver: { type: "turn", modifier: "right", location: [77.21, 28.61] },
+                },
+                {
+                  distance: 0,
+                  duration: 0,
+                  name: "",
+                  maneuver: { type: "arrive", modifier: "straight", location: [72.8, 19.0] },
+                },
+              ],
+            },
+          ],
         },
       ],
     },
@@ -60,6 +110,10 @@ test("osrmAdapter parses route response or throws 404", async (t) => {
 
   assert.equal(route.distance, 1400000);
   assert.equal(route.geometry.coordinates.length, 2);
+  assert.equal(route.steps.length, 3);
+  assert.match(route.steps[0].instruction, /Outer Ring Road/);
+  assert.match(route.steps[1].instruction, /Turn right onto NH44/);
+  assert.match(route.steps[2].instruction, /arrived/);
 });
 
 test("overpassAdapter maps network failures to 503", async (t) => {
@@ -77,4 +131,3 @@ test("overpassAdapter maps network failures to 503", async (t) => {
     (err) => err.statusCode === 503 && err.message === "Nearby places are temporarily unavailable"
   );
 });
-

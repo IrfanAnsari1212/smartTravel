@@ -40,10 +40,12 @@ class SimpleCache {
 
 const geocodeCache = new SimpleCache(60 * 60 * 1000, 500); // 1 hour TTL
 const routeCache = new SimpleCache(30 * 60 * 1000, 200);   // 30 min TTL
+const placesCache = new SimpleCache(60 * 60 * 1000, 500);  // 1 hour TTL
 
 module.exports = {
   SimpleCache,
   geocodeCache,
   routeCache,
+  placesCache,
 };
 

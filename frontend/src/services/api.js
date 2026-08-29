@@ -1,4 +1,5 @@
 const trimTrailingSlash = (value) => value.replace(/\/+$/, "");
+
 const getDefaultApiBaseUrl = () => {
   if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
     return "/_/backend/api";
@@ -7,9 +8,17 @@ const getDefaultApiBaseUrl = () => {
   return "/api";
 };
 
-export const API_BASE_URL = trimTrailingSlash(
-  import.meta.env.VITE_API_BASE_URL || getDefaultApiBaseUrl()
-);
+const resolveApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    const trimmed = trimTrailingSlash(envUrl);
+    return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+  }
+
+  return getDefaultApiBaseUrl();
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const AUTH_STORAGE_KEY = "smart-travel-session-v1";
 
