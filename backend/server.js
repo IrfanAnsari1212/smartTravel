@@ -17,7 +17,6 @@ const tripRoutes = require("./routes/tripRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const emergencyRoutes = require("./routes/emergencyRoutes");
 const hotelRoutes = require("./routes/hotelRoutes");
-const weatherRoutes = require("./routes/weatherRoutes");
 
 const app = express();
 const frontendDistPath = path.join(__dirname, "..", "frontend", "dist");
@@ -91,7 +90,6 @@ app.use("/api/trip", tripRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/emergency", emergencyRoutes);
 app.use("/api/hotels", hotelRoutes);
-app.use("/api/weather", weatherRoutes);
 
 app.use("/api", (req, res) => {
   res.status(404).json({ message: "API route not found" });

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { updateTripItineraryRequest } from "../../services/tripService";
-import WeatherWidget from "../weather/WeatherWidget";
 
 export default function MultiDayItineraryPanel({
   route,
@@ -507,15 +506,11 @@ export default function MultiDayItineraryPanel({
                         ) : (
                           <>
                             <div className="flex items-center gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
                               <h4 className="font-bold text-xs text-white">{stop.name}</h4>
                               {stop.category && (
                                 <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] font-medium text-slate-400 capitalize">
                                   {stop.category}
                                 </span>
-                              )}
-                              {Number.isFinite(stop.lat) && Number.isFinite(stop.lon) && (
-                                <WeatherWidget lat={stop.lat} lon={stop.lon} compact={true} />
                               )}
                             </div>
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
