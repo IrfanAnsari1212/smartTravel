@@ -30,3 +30,4 @@ const queryOsrmRoute = async (start, destination) => {
 module.exports = {
   queryOsrmRoute,
 };
+
