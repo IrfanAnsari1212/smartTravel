@@ -12,6 +12,8 @@ import RoutePlannerForm from "./components/route/RoutePlannerForm";
 import TripSummaryPanel from "./components/route/TripSummaryPanel";
 import RecommendedStops from "./components/stops/RecommendedStops";
 import AITravelAssistant from "./components/ai/AITravelAssistant";
+import EmergencyHubModal from "./components/emergency/EmergencyHubModal";
+import HotelSearchModal from "./components/hotels/HotelSearchModal";
 
 import { AuthProvider } from "./context/AuthProvider";
 import { useAuthContext } from "./context/useAuthContext";
@@ -30,6 +32,8 @@ function SmartTravelDashboard() {
   const [isOnline, setIsOnline] = useState(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
+  const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
+  const [isHotelsOpen, setIsHotelsOpen] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -336,6 +340,42 @@ function SmartTravelDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 left-6 z-40 flex flex-col gap-2.5">
+        <button
+          type="button"
+          onClick={() => setIsEmergencyOpen(true)}
+          className="flex items-center gap-2 rounded-full bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-xl shadow-rose-950/60 border border-rose-400/40 hover:bg-rose-500 hover:scale-105 transition active:scale-95"
+        >
+          <span className="animate-pulse text-base">🚨</span>
+          <span>Emergency Support</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsHotelsOpen(true)}
+          className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-xl shadow-indigo-950/60 border border-indigo-400/40 hover:bg-indigo-500 hover:scale-105 transition active:scale-95"
+        >
+          <span className="text-base">🏨</span>
+          <span>Hotels & Rooms</span>
+        </button>
+      </div>
+
+      <EmergencyHubModal
+        isOpen={isEmergencyOpen}
+        onClose={() => setIsEmergencyOpen(false)}
+        currentLocation={navigation.navigationState.currentLocation}
+        route={planner.route}
+        session={auth.session}
+      />
+
+      <HotelSearchModal
+        isOpen={isHotelsOpen}
+        onClose={() => setIsHotelsOpen(false)}
+        currentLocation={navigation.navigationState.currentLocation}
+        route={planner.route}
+      />
 
       {/* Floating AI Travel Assistant */}
       <AITravelAssistant route={planner.route} />
