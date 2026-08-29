@@ -43,3 +43,4 @@ export default function TripSummaryPanel({ route, start, destination }) {
     </div>
   );
 }
+

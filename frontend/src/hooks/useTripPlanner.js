@@ -209,3 +209,4 @@ export function useTripPlanner(session, isOnline) {
     openOfflineTrip,
   };
 }
+

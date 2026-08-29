@@ -110,3 +110,4 @@ export const routeFromOfflineTrip = (trip) => ({
   filters: trip.filters,
   placeLookup: trip.placeLookup,
 });
+

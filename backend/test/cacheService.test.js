@@ -32,3 +32,4 @@ test("SimpleCache evicts oldest key when maxEntries is reached", () => {
   assert.equal(cache.get("key2"), "val2");
   assert.equal(cache.get("key3"), "val3");
 });
+
