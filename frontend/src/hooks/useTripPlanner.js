@@ -338,6 +338,12 @@ export function useTripPlanner(session, isOnline) {
     setFocusedSafetyPlace(null);
   };
 
+  const applyHistoryTrip = useCallback((trip, onApplyCallback) => {
+    selectHistoryTrip(trip);
+    if (onApplyCallback) onApplyCallback();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadOfflineTripIntoPlanner = (offlineTrip) => {
     setStart(offlineTrip.start?.name || offlineTrip.startQuery || "");
     setDestination(offlineTrip.destination?.name || offlineTrip.destinationQuery || "");
@@ -349,6 +355,12 @@ export function useTripPlanner(session, isOnline) {
     setRoute(routeFromOfflineTrip(offlineTrip));
     setFocusedSafetyPlace(null);
   };
+
+  const openOfflineTrip = useCallback((offlineTrip, onOpenCallback) => {
+    loadOfflineTripIntoPlanner(offlineTrip);
+    if (onOpenCallback) onOpenCallback();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const recalculateOptimizedRoute = async (customOptions = {}) => {
     if (!start.trim() || !destination.trim() || !isOnline) return;
@@ -424,7 +436,11 @@ export function useTripPlanner(session, isOnline) {
     recalculateOptimizedRoute,
     handleFavoriteToggle,
     selectHistoryTrip,
+    applyHistoryTrip,
     loadOfflineTripIntoPlanner,
+    openOfflineTrip,
+    loadTripHistory,
+    setHistory,
     addRecentSearch,
   };
 }
