@@ -1,60 +1,24 @@
-# 🚀 Smart Travel Planner
+# SmartTravel
 
-A full-stack travel planning web app that helps users plan trips with intelligent route visualization, autocomplete search, and recommended stops.
+SmartTravel plans driving routes, surfaces nearby travel stops, and supports offline route packs. Accounts keep saved trips private to their owner.
 
----
+## Local setup
 
-## LINK
--https://travel-platform-lime.vercel.app
+1. Copy `backend/.env.example` to `backend/.env` and provide a MongoDB URI, a long random JWT secret, and the allowed frontend origin.
+2. Copy `frontend/.env.example` to `frontend/.env` only when the frontend is hosted separately from the backend.
+3. Run `npm install`, then `npm run build` and `npm start` from the repository root. For development, start `npm run dev` in `frontend` and `npm run dev` in `backend`.
 
-## 🌍 Features
+## Security
 
-### 🔍 Smart Location Search
-- Autocomplete powered by LocationIQ
-- Reduces user input errors
-- Real-time suggestions
+Never commit `.env` files. Database credentials and JWT secrets must be stored in the deployment provider's secret manager and rotated if exposed.
 
-### 🗺 Route Planning
-- Find shortest route between two locations
-- Visual route display on interactive map (Leaflet + OpenStreetMap)
+## Health checks
 
-### 🚗 Vehicle-Based Intelligence
-- Car → fuel stations, hotels, restaurants
-- Bike → scenic spots, attractions
-- Walk → cafes, parks
+- `GET /api/health` reports whether the database is connected.
+- `GET /api/ready` is only successful when required production dependencies are available.
 
-### 📍 Recommended Stops
-- Suggests places along the route
-- Clean UI with categorized stops
+## API access
 
-### 🎨 Modern UI
-- Built with Tailwind CSS
-- Dark theme
-- Responsive layout
-
----
-
-## 🛠 Tech Stack
-
-### Frontend
-- React.js (Vite)
-- Tailwind CSS (v4)
-- Axios
-- React-Leaflet
-
-### Backend
-- Node.js
-- Express.js
-- MongoDB (Mongoose)
-- LocationIQ API
-- OpenStreetMap (Overpass API)
-
----
-
-## ⚙️ Installation
-
-### 1. Clone repo
-
-```bash
-git clone https://IrfanAnsari1212.git
-cd travel-platform
+- `POST /api/auth/register` and `POST /api/auth/login` accept an email and a password of at least 12 characters.
+- Requests to `/api/trip/*` require `Authorization: Bearer <token>`.
+- Location autocomplete remains public, rate-limited, and input-validated.

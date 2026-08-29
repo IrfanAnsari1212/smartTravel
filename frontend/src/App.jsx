@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import MapView from "./components/MapView";
+import { getSession, login, logout, register } from "./services/authService";
 import { searchPlaces } from "./services/locationService";
 import {
   downloadOfflineMapPack,
@@ -110,6 +111,7 @@ const tripFromHistory = (trip) => ({
   places: trip.places,
   emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
   filters: trip.filters,
+  placeLookup: trip.placeLookup,
 });
 
 const routeFromOfflineTrip = (trip) => ({
@@ -122,11 +124,18 @@ const routeFromOfflineTrip = (trip) => ({
   places: trip.places,
   emergencyServices: normalizeEmergencyServices(trip.emergencyServices),
   filters: trip.filters,
+  placeLookup: trip.placeLookup,
 });
 const normalizeTripHistory = (trips) => (Array.isArray(trips) ? trips : []);
 const normalizeOfflineTrips = (trips) => (Array.isArray(trips) ? trips : []);
 
 function App() {
+  const [session, setSession] = useState(getSession);
+  const [authMode, setAuthMode] = useState("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [start, setStart] = useState("");
   const [destination, setDestination] = useState("");
   const [route, setRoute] = useState(null);
@@ -259,7 +268,7 @@ function App() {
   }, [emergencyFallbacks]);
 
   const loadTripHistory = async () => {
-    if (!isOnline) {
+    if (!isOnline || !session) {
       setHistoryLoading(false);
       return;
     }
@@ -296,7 +305,7 @@ function App() {
 
   useEffect(() => {
     const refreshHistoryForNetworkState = async () => {
-      if (!isOnline) {
+      if (!isOnline || !session) {
         setHistoryLoading(false);
         return;
       }
@@ -314,7 +323,7 @@ function App() {
     };
 
     refreshHistoryForNetworkState();
-  }, [isOnline]);
+  }, [isOnline, session]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -405,10 +414,16 @@ function App() {
     }
 
     searchTimeouts.current[key] = setTimeout(async () => {
-      const results = await searchPlaces(value);
-
-      if (searchRequestIds.current[key] === requestId) {
-        setter(results);
+      try {
+        const results = await searchPlaces(value);
+        if (searchRequestIds.current[key] === requestId) {
+          setter(results);
+        }
+      } catch (error) {
+        if (searchRequestIds.current[key] === requestId) {
+          setter([]);
+          setErrorMessage(error.response?.data?.message || "Location search is temporarily unavailable.");
+        }
       }
     }, 300);
   };
@@ -426,6 +441,10 @@ function App() {
   };
 
   const planTrip = async () => {
+    if (!session) {
+      setErrorMessage("Sign in to plan and save a trip.");
+      return;
+    }
     if (!isOnline) {
       setErrorMessage(
         "You are offline. Open a saved offline trip or import a trip pack instead."
@@ -472,6 +491,30 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAuthentication = async (event) => {
+    event.preventDefault();
+    try {
+      setAuthLoading(true);
+      setAuthError("");
+      const submit = authMode === "register" ? register : login;
+      const nextSession = await submit({ email: authEmail, password: authPassword });
+      setSession(nextSession);
+      setAuthPassword("");
+    } catch (error) {
+      setAuthError(error.response?.data?.message || "Unable to sign in right now.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setSession(null);
+    setHistory([]);
+    setRoute(null);
+    setErrorMessage("");
   };
 
   const applyHistoryTrip = (trip) => {
@@ -749,6 +792,22 @@ function App() {
       />
 
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-6 md:px-6">
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/90 p-5">
+          {session?.user ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-slate-300">Signed in as <span className="font-medium text-white">{session.user.email}</span></p>
+              <button type="button" onClick={handleLogout} className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100">Sign out</button>
+            </div>
+          ) : (
+            <form onSubmit={handleAuthentication} className="flex flex-col gap-3 md:flex-row md:items-end">
+              <div className="flex-1"><label className="mb-1 block text-sm text-slate-300">Email</label><input type="email" required value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-cyan-400" /></div>
+              <div className="flex-1"><label className="mb-1 block text-sm text-slate-300">Password</label><input type="password" required minLength="12" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-cyan-400" /></div>
+              <button disabled={authLoading} className="rounded-xl bg-cyan-400 px-5 py-2 font-medium text-slate-950 disabled:bg-cyan-800">{authLoading ? "Please wait..." : authMode === "login" ? "Sign in" : "Create account"}</button>
+              <button type="button" onClick={() => { setAuthMode((mode) => mode === "login" ? "register" : "login"); setAuthError(""); }} className="text-sm text-cyan-200 hover:text-cyan-100">{authMode === "login" ? "Create account" : "Use existing account"}</button>
+              {authError && <p className="text-sm text-rose-200">{authError}</p>}
+            </form>
+          )}
+        </section>
         {!isOnline && (
           <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
             Offline mode is active. You can open saved routes, import offline trip
@@ -1441,7 +1500,9 @@ function App() {
                       ))
                     ) : (
                       <p className="rounded-2xl border border-dashed border-slate-700 px-4 py-6 text-sm text-slate-400">
-                        No stops matched the selected filters on this route.
+                        {route.placeLookup?.status === "unavailable"
+                          ? "Nearby-stop data is temporarily unavailable. Your route is still saved and can be retried later."
+                          : "No stops matched the selected filters on this route."}
                       </p>
                     )}
                   </div>

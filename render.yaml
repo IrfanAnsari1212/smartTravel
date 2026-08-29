@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: travel-platform
+    name: smart-travel
     runtime: node
     plan: free
     rootDir: .
@@ -9,6 +9,8 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
         sync: false
       - key: CORS_ORIGIN
         sync: false

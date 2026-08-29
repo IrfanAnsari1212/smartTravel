@@ -1,7 +1,8 @@
 const { getCoordinates } = require("../services/locationService");
 const { getRoute } = require("../services/routeService");
-const { getPlacesNearby } = require("../services/placeService");
+const { ALL_TYPES, getPlacesNearby } = require("../services/placeService");
 const { listTrips, saveTrip, toggleFavorite } = require("../services/tripStore");
+const { z } = require("zod");
 
 const DEFAULT_FILTERS = ["restaurant", "hotel", "fuel"];
 const EMERGENCY_FILTERS = ["fuel", "hotel", "hospital", "mechanic"];
@@ -11,6 +12,14 @@ const EMPTY_EMERGENCY_SERVICES = {
   hospital: [],
   mechanic: [],
 };
+
+const planTripSchema = z.object({
+  start: z.string().trim().min(2).max(200),
+  destination: z.string().trim().min(2).max(200),
+  filters: z.array(z.enum(DEFAULT_FILTERS)).min(1).max(DEFAULT_FILTERS.length).optional(),
+  maxPlaces: z.coerce.number().int().min(1).max(20).optional(),
+});
+const historyQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(20).optional() });
 
 const normalizeFilters = (filters) => {
   if (!Array.isArray(filters) || !filters.length) {
@@ -47,14 +56,7 @@ const finalizeEmergencyServices = (serviceMaps, limit = 4) =>
 
 const planTrip = async (req, res, next) => {
   try {
-    const { start, destination, filters = DEFAULT_FILTERS, maxPlaces = 10 } =
-      req.body;
-
-    if (!start || !destination) {
-      return res
-        .status(400)
-        .json({ message: "Start and destination are required" });
-    }
+    const { start, destination, filters = DEFAULT_FILTERS, maxPlaces = 10 } = planTripSchema.parse(req.body);
 
     const startCoords = await getCoordinates(start);
     const destCoords = await getCoordinates(destination);
@@ -68,25 +70,24 @@ const planTrip = async (req, res, next) => {
     const placeFilters = normalizeFilters(filters);
     const placesMap = new Map();
     const emergencyServiceMaps = createEmergencyServiceMaps();
+    let placeLookupFailures = 0;
 
     for (const point of points) {
       const [lon, lat] = point;
 
       try {
-        const [nearby, nearbyEmergency] = await Promise.all([
-          getPlacesNearby(lat, lon, placeFilters),
-          getPlacesNearby(lat, lon, EMERGENCY_FILTERS),
-        ]);
+        const nearby = await getPlacesNearby(lat, lon, ALL_TYPES);
 
         nearby.forEach((place) => {
-          if (!placesMap.has(place.id)) {
+          if (placeFilters.includes(place.category) && !placesMap.has(place.id)) {
             placesMap.set(place.id, place);
           }
         });
 
-        addEmergencyPlaces(emergencyServiceMaps, nearbyEmergency);
+        addEmergencyPlaces(emergencyServiceMaps, nearby);
       } catch (error) {
-        console.log("Skipping one point");
+        placeLookupFailures += 1;
+        console.warn(`Nearby-place lookup failed for [${lat}, ${lon}]: ${error.message}`);
       }
     }
 
@@ -97,6 +98,7 @@ const planTrip = async (req, res, next) => {
     const emergencyServices = finalizeEmergencyServices(emergencyServiceMaps);
 
     const savedTrip = await saveTrip({
+      userId: req.user.id,
       startQuery: start,
       destinationQuery: destination,
       start: startCoords,
@@ -107,6 +109,10 @@ const planTrip = async (req, res, next) => {
       geometry: route.geometry,
       places,
       emergencyServices,
+      placeLookup: {
+        status: placeLookupFailures === points.length ? "unavailable" : "available",
+        failedPoints: placeLookupFailures,
+      },
     });
 
     res.json({
@@ -119,6 +125,7 @@ const planTrip = async (req, res, next) => {
       places,
       emergencyServices: savedTrip.emergencyServices || EMPTY_EMERGENCY_SERVICES,
       filters: placeFilters,
+      placeLookup: savedTrip.placeLookup,
     });
   } catch (error) {
     console.error("Trip Error:", error.response?.data || error.message);
@@ -130,8 +137,8 @@ const planTrip = async (req, res, next) => {
 
 const getTripHistory = async (req, res, next) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 6, 20);
-    const trips = await listTrips(limit);
+    const { limit = 6 } = historyQuerySchema.parse(req.query);
+    const trips = await listTrips(req.user.id, limit);
     res.json(trips);
   } catch (error) {
     next(error);
@@ -140,7 +147,7 @@ const getTripHistory = async (req, res, next) => {
 
 const updateFavoriteTrip = async (req, res, next) => {
   try {
-    const trip = await toggleFavorite(req.params.id);
+    const trip = await toggleFavorite(req.params.id, req.user.id);
 
     if (!trip) {
       return res.status(404).json({ message: "Trip not found" });

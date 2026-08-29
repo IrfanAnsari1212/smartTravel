@@ -1,8 +1,4 @@
-const mongoose = require("mongoose");
-
 const Trip = require("../models/Trip");
-
-const memoryTrips = [];
 
 const toTripResponse = (trip) => {
   if (!trip) {
@@ -23,64 +19,34 @@ const toTripResponse = (trip) => {
     geometry: source.geometry,
     places: source.places || [],
     emergencyServices: source.emergencyServices || {},
+    placeLookup: source.placeLookup || { status: "available", failedPoints: 0 },
     favorite: Boolean(source.favorite),
     createdAt: source.createdAt,
   };
 };
 
-const isDatabaseReady = () => mongoose.connection.readyState === 1;
-
 const saveTrip = async (tripPayload) => {
-  if (isDatabaseReady()) {
-    const trip = await Trip.create(tripPayload);
-    return toTripResponse(trip);
-  }
-
-  const trip = {
-    ...tripPayload,
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    favorite: false,
-    createdAt: new Date().toISOString(),
-  };
-
-  memoryTrips.unshift(trip);
-  memoryTrips.splice(20);
-
+  const trip = await Trip.create(tripPayload);
   return toTripResponse(trip);
 };
 
-const listTrips = async (limit = 6) => {
-  if (isDatabaseReady()) {
-    const trips = await Trip.find({})
-      .sort({ favorite: -1, createdAt: -1 })
-      .limit(limit);
-
-    return trips.map(toTripResponse);
-  }
-
-  return memoryTrips.slice(0, limit).map(toTripResponse);
+const listTrips = async (userId, limit = 6) => {
+  const trips = await Trip.find({ userId })
+    .sort({ favorite: -1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+  return trips.map(toTripResponse);
 };
 
-const toggleFavorite = async (id) => {
-  if (isDatabaseReady()) {
-    const trip = await Trip.findById(id);
-
-    if (!trip) {
-      return null;
-    }
-
-    trip.favorite = !trip.favorite;
-    await trip.save();
-    return toTripResponse(trip);
-  }
-
-  const trip = memoryTrips.find((item) => item.id === id);
+const toggleFavorite = async (id, userId) => {
+  const trip = await Trip.findOne({ _id: id, userId });
 
   if (!trip) {
     return null;
   }
 
   trip.favorite = !trip.favorite;
+  await trip.save();
   return toTripResponse(trip);
 };
 
