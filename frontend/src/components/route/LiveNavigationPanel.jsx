@@ -1,4 +1,4 @@
-import { formatDistance, formatSpeed } from "../utils/formatters";
+import { formatDistance, formatSpeed } from "../../utils/formatters";
 
 export default function LiveNavigationPanel({
   navigationState,
@@ -82,4 +82,3 @@ export default function LiveNavigationPanel({
     </div>
   );
 }
-

@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import AuthBar from "./components/AuthBar";
-import EmergencyPanel from "./components/EmergencyPanel";
-import HeroHeader from "./components/HeroHeader";
-import LiveNavigationPanel from "./components/LiveNavigationPanel";
-import MapView from "./components/MapView";
-import OfflineChecklist from "./components/OfflineChecklist";
-import OfflineTripLibrary from "./components/OfflineTripLibrary";
-import RecommendedStops from "./components/RecommendedStops";
-import RoutePlannerForm from "./components/RoutePlannerForm";
-import TripHistoryPanel from "./components/TripHistoryPanel";
-import TripSummaryPanel from "./components/TripSummaryPanel";
+import AuthBar from "./components/common/AuthBar";
+import HeroHeader from "./components/common/HeroHeader";
+import EmergencyPanel from "./components/emergency/EmergencyPanel";
+import TripHistoryPanel from "./components/history/TripHistoryPanel";
+import MapView from "./components/map/MapView";
+import OfflineChecklist from "./components/offline/OfflineChecklist";
+import OfflineTripLibrary from "./components/offline/OfflineTripLibrary";
+import LiveNavigationPanel from "./components/route/LiveNavigationPanel";
+import RoutePlannerForm from "./components/route/RoutePlannerForm";
+import TripSummaryPanel from "./components/route/TripSummaryPanel";
+import RecommendedStops from "./components/stops/RecommendedStops";
 
-import { useAuth } from "./hooks/useAuth";
+import { AuthProvider } from "./context/AuthProvider";
+import { useAuthContext } from "./context/useAuthContext";
 import { useLiveNavigation } from "./hooks/useLiveNavigation";
 import { useOfflineStorage } from "./hooks/useOfflineStorage";
 import { useTripPlanner } from "./hooks/useTripPlanner";
@@ -24,14 +25,14 @@ import {
   normalizeEmergencyServices,
 } from "./utils/formatters";
 
-export default function App() {
+function SmartTravelDashboard() {
   const [isOnline, setIsOnline] = useState(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
 
   const fileInputRef = useRef(null);
 
-  const auth = useAuth();
+  const auth = useAuthContext();
   const planner = useTripPlanner(auth.session, isOnline);
   const navigation = useLiveNavigation(planner.route);
 
@@ -296,5 +297,13 @@ export default function App() {
         </section>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <SmartTravelDashboard />
+    </AuthProvider>
   );
 }

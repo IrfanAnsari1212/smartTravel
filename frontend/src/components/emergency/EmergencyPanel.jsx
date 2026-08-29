@@ -3,7 +3,7 @@ import {
   buildMapsSearchUrl,
   formatDistance,
   normalizeExternalUrl,
-} from "../utils/formatters";
+} from "../../utils/formatters";
 
 export default function EmergencyPanel({
   emergencyReferenceLabel,

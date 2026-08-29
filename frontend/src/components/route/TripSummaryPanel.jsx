@@ -1,4 +1,4 @@
-import { formatDistance, formatDuration } from "../utils/formatters";
+import { formatDistance, formatDuration } from "../../utils/formatters";
 
 export default function TripSummaryPanel({ route, start, destination }) {
   if (!route) {
@@ -43,4 +43,3 @@ export default function TripSummaryPanel({ route, start, destination }) {
     </div>
   );
 }
-

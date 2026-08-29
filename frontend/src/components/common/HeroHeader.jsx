@@ -16,4 +16,3 @@ export default function HeroHeader() {
     </div>
   );
 }
-

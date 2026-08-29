@@ -1,10 +1,7 @@
-const axios = require("axios");
+const { queryOverpass } = require("../adapters/overpassAdapter");
 
 const DEFAULT_TYPES = ["restaurant", "hotel", "fuel"];
 const ALL_TYPES = ["restaurant", "hotel", "fuel", "hospital", "mechanic"];
-const OVERPASS_URL =
-  process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter";
-const OVERPASS_TIMEOUT_MS = Number(process.env.OVERPASS_TIMEOUT_MS) || 8000;
 
 const overpassFragments = {
   restaurant: 'nwr["amenity"="restaurant"]',
@@ -98,43 +95,36 @@ const formatPlace = (place) => ({
 });
 
 const getPlacesNearby = async (lat, lon, placeTypes = DEFAULT_TYPES) => {
-  try {
-    const selectedTypes = placeTypes.filter((type) => overpassFragments[type]);
+  const selectedTypes = placeTypes.filter((type) => overpassFragments[type]);
 
-    const queryParts = (selectedTypes.length ? selectedTypes : DEFAULT_TYPES).map(
-      (type) => `${overpassFragments[type]}(around:5000,${lat},${lon});`
+  const queryParts = (selectedTypes.length ? selectedTypes : DEFAULT_TYPES).map(
+    (type) => `${overpassFragments[type]}(around:5000,${lat},${lon});`
+  );
+
+  const query = `
+    [out:json][timeout:10];
+    (
+      ${queryParts.join("\n")}
     );
+    out center tags;
+  `;
 
-    const query = `
-      [out:json][timeout:10];
-      (
-        ${queryParts.join("\n")}
-      );
-      out center tags;
-    `;
+  const elements = await queryOverpass(query);
+  const deduped = new Map();
 
-    const response = await axios.post(OVERPASS_URL, new URLSearchParams({ data: query }), {
-      timeout: OVERPASS_TIMEOUT_MS,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+  elements.forEach((place) => {
+    const formatted = formatPlace(place);
 
-    const deduped = new Map();
+    if (
+      Number.isFinite(formatted.lat) &&
+      Number.isFinite(formatted.lon) &&
+      !deduped.has(formatted.id)
+    ) {
+      deduped.set(formatted.id, formatted);
+    }
+  });
 
-    (response.data?.elements || []).forEach((place) => {
-      const formatted = formatPlace(place);
-
-      if (Number.isFinite(formatted.lat) && Number.isFinite(formatted.lon) && !deduped.has(formatted.id)) {
-        deduped.set(formatted.id, formatted);
-      }
-    });
-
-    return Array.from(deduped.values());
-  } catch (error) {
-    const providerError = new Error("Nearby places are temporarily unavailable");
-    providerError.statusCode = 503;
-    providerError.cause = error;
-    throw providerError;
-  }
+  return Array.from(deduped.values());
 };
 
-module.exports = { ALL_TYPES, getPlacesNearby };
+module.exports = { ALL_TYPES, getPlacesNearby, formatPlace };

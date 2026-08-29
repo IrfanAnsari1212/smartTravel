@@ -1,4 +1,4 @@
-import { normalizeExternalUrl } from "../utils/formatters";
+import { normalizeExternalUrl } from "../../utils/formatters";
 
 export default function RecommendedStops({ route, stopFiltersLabel }) {
   const places = route?.places || [];
@@ -105,4 +105,3 @@ export default function RecommendedStops({ route, stopFiltersLabel }) {
     </div>
   );
 }
-

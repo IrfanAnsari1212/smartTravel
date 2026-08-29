@@ -1,4 +1,4 @@
-import { formatDistance, formatDuration } from "../utils/formatters";
+import { formatDistance, formatDuration } from "../../utils/formatters";
 
 export default function OfflineTripLibrary({
   offlineTrips,
@@ -93,4 +93,3 @@ export default function OfflineTripLibrary({
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { PLACE_FILTERS } from "../utils/formatters";
+import { PLACE_FILTERS } from "../../utils/formatters";
 
 export default function RoutePlannerForm({
   start,
@@ -158,4 +158,3 @@ export default function RoutePlannerForm({
     </div>
   );
 }
-

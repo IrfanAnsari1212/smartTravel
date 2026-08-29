@@ -1,4 +1,4 @@
-import { formatDistance, formatDuration } from "../utils/formatters";
+import { formatDistance, formatDuration } from "../../utils/formatters";
 
 export default function TripHistoryPanel({
   history,
@@ -74,4 +74,3 @@ export default function TripHistoryPanel({
     </div>
   );
 }
-
