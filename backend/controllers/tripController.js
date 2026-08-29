@@ -4,8 +4,7 @@ const { ALL_TYPES, getPlacesNearby } = require("../services/placeService");
 const { listTrips, saveTrip, toggleFavorite } = require("../services/tripStore");
 const { z } = require("zod");
 
-const DEFAULT_FILTERS = ["restaurant", "hotel", "fuel"];
-const EMERGENCY_FILTERS = ["fuel", "hotel", "hospital", "mechanic"];
+const DEFAULT_FILTERS = ["restaurant", "hotel", "fuel", "hospital", "mechanic"];
 const EMPTY_EMERGENCY_SERVICES = {
   fuel: [],
   hotel: [],
@@ -14,9 +13,9 @@ const EMPTY_EMERGENCY_SERVICES = {
 };
 
 const planTripSchema = z.object({
-  start: z.string().trim().min(2).max(200),
-  destination: z.string().trim().min(2).max(200),
-  filters: z.array(z.enum(DEFAULT_FILTERS)).min(1).max(DEFAULT_FILTERS.length).optional(),
+  start: z.string().trim().min(1).max(300),
+  destination: z.string().trim().min(1).max(300),
+  filters: z.array(z.string().trim()).optional(),
   maxPlaces: z.coerce.number().int().min(1).max(20).optional(),
 });
 const historyQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(20).optional() });
@@ -26,7 +25,8 @@ const normalizeFilters = (filters) => {
     return DEFAULT_FILTERS;
   }
 
-  return filters.filter((filter) => DEFAULT_FILTERS.includes(filter));
+  const valid = filters.filter((filter) => ALL_TYPES.includes(filter));
+  return valid.length ? valid : DEFAULT_FILTERS;
 };
 
 const createEmergencyServiceMaps = () => ({
@@ -132,8 +132,6 @@ const planTrip = async (req, res, next) => {
     next(error);
   }
 };
-
-
 
 const getTripHistory = async (req, res, next) => {
   try {
