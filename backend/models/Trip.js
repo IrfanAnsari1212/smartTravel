@@ -41,6 +41,15 @@ const stepSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const tripOptionsSchema = new mongoose.Schema(
+  {
+    avoidTolls: { type: Boolean, default: false },
+    avoidHighways: { type: Boolean, default: false },
+    optimized: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
 const tripSchema = new mongoose.Schema(
   {
     userId: {
@@ -53,6 +62,8 @@ const tripSchema = new mongoose.Schema(
     destinationQuery: { type: String, required: true },
     start: { type: pointSchema, required: true },
     destination: { type: pointSchema, required: true },
+    waypoints: { type: [pointSchema], default: [] },
+    options: { type: tripOptionsSchema, default: () => ({}) },
     filters: { type: [String], default: [] },
     distance: { type: Number, required: true },
     duration: { type: Number, required: true },

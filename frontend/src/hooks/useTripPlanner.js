@@ -9,6 +9,7 @@ import {
 
 const RECENT_SEARCHES_KEY = "smart-travel-recent-searches-v1";
 const MAX_RECENT_SEARCHES = 6;
+const MAX_WAYPOINTS = 5;
 
 const getStoredRecentSearches = () => {
   try {
@@ -30,6 +31,12 @@ const storeRecentSearches = (searches) => {
 export function useTripPlanner(session, isOnline) {
   const [start, setStart] = useState("");
   const [destination, setDestination] = useState("");
+  const [waypoints, setWaypoints] = useState([]); // Array of strings e.g. ["Mathura"]
+  const [waypointSuggestions, setWaypointSuggestions] = useState({}); // { [index]: suggestionsArray }
+  const [avoidTolls, setAvoidTolls] = useState(false);
+  const [avoidHighways, setAvoidHighways] = useState(false);
+  const [optimize, setOptimize] = useState(false);
+
   const [route, setRoute] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,6 +72,53 @@ export function useTripPlanner(session, isOnline) {
     storeRecentSearches([]);
   }, []);
 
+  // Waypoint Management Handlers
+  const addWaypoint = useCallback(() => {
+    setWaypoints((prev) => {
+      if (prev.length >= MAX_WAYPOINTS) return prev;
+      return [...prev, ""];
+    });
+  }, []);
+
+  const removeWaypoint = useCallback((index) => {
+    setWaypoints((prev) => prev.filter((_, i) => i !== index));
+    setWaypointSuggestions((prev) => {
+      const updated = { ...prev };
+      delete updated[index];
+      return updated;
+    });
+  }, []);
+
+  const updateWaypoint = useCallback((index, value) => {
+    setWaypoints((prev) => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+  }, []);
+
+  const moveWaypointUp = useCallback((index) => {
+    if (index <= 0) return;
+    setWaypoints((prev) => {
+      const updated = [...prev];
+      const temp = updated[index - 1];
+      updated[index - 1] = updated[index];
+      updated[index] = temp;
+      return updated;
+    });
+  }, []);
+
+  const moveWaypointDown = useCallback((index) => {
+    setWaypoints((prev) => {
+      if (index >= prev.length - 1) return prev;
+      const updated = [...prev];
+      const temp = updated[index + 1];
+      updated[index + 1] = updated[index];
+      updated[index] = temp;
+      return updated;
+    });
+  }, []);
+
   const detectCurrentLocation = useCallback((isAuto = false) => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       if (!isAuto) {
@@ -89,94 +143,83 @@ export function useTripPlanner(session, isOnline) {
             setLocationStatus("found");
             setLocationMessage(`Location acquired: ${place.displayName}`);
           } else {
-            setStart(`${lat.toFixed(5)}, ${lon.toFixed(5)}`);
             setLocationStatus("found");
-            setLocationMessage("Coordinates acquired.");
+            setLocationMessage("Acquired current GPS coordinates.");
           }
         } catch {
-          // If reverse geocoding fails, fallback to coordinates
-          const coordsLabel = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-          setStart(coordsLabel);
-          setLocationStatus("found");
-          setLocationMessage("Using raw coordinates (reverse geocoding unavailable).");
+          setLocationStatus("error");
+          setLocationMessage("Unable to reverse geocode your coordinates.");
         }
       },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
+      (err) => {
+        if (err.code === 1) {
           setLocationStatus("denied");
-          setLocationMessage(
-            isAuto
-              ? ""
-              : "Location permission was denied. You can enter a starting place manually."
-          );
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          setLocationStatus("unavailable");
-          setLocationMessage("Location information is currently unavailable.");
-        } else if (error.code === error.TIMEOUT) {
-          setLocationStatus("error");
-          setLocationMessage("Location request timed out. Please try again.");
+          setLocationMessage("Location permission was denied.");
         } else {
           setLocationStatus("error");
-          setLocationMessage(error.message || "Failed to retrieve location.");
+          setLocationMessage("Location unavailable or timed out.");
         }
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
   }, []);
 
-  // Automatic current-location detection on initial load
   useEffect(() => {
-    if (!hasAutoLocated.current && !start) {
-      hasAutoLocated.current = true;
+    if (hasAutoLocated.current) return;
+    hasAutoLocated.current = true;
+    if (!start && typeof window !== "undefined" && navigator.geolocation) {
       detectCurrentLocation(true);
     }
   }, [detectCurrentLocation, start]);
 
-  const clearSearchState = (key, setter) => {
-    clearTimeout(searchTimeouts.current[key]);
-    searchRequestIds.current[key] = (searchRequestIds.current[key] || 0) + 1;
-    setter([]);
-  };
+  const handleSearch = useCallback(
+    (query, setter, typeKey = "start") => {
+      const trimmed = query.trim();
 
-  const handleSearch = (value, setter, key) => {
-    clearTimeout(searchTimeouts.current[key]);
-    const requestId = (searchRequestIds.current[key] || 0) + 1;
-    searchRequestIds.current[key] = requestId;
+      if (searchTimeouts.current[typeKey]) {
+        clearTimeout(searchTimeouts.current[typeKey]);
+      }
 
-    if (!value.trim()) {
-      setter([]);
-      return;
+      if (trimmed.length < 2) {
+        setter([]);
+        return;
+      }
+
+      const requestId = Date.now();
+      searchRequestIds.current[typeKey] = requestId;
+
+      searchTimeouts.current[typeKey] = setTimeout(async () => {
+        try {
+          const results = await searchPlaces(trimmed);
+          if (searchRequestIds.current[typeKey] === requestId) {
+            setter(results);
+          }
+        } catch (error) {
+          if (searchRequestIds.current[typeKey] === requestId) {
+            console.error(error);
+            setter([]);
+          }
+        }
+      }, 300);
+    },
+    []
+  );
+
+  const clearSearchState = useCallback((typeKey, setter) => {
+    if (searchTimeouts.current[typeKey]) {
+      clearTimeout(searchTimeouts.current[typeKey]);
     }
+    delete searchRequestIds.current[typeKey];
+    setter([]);
+  }, []);
 
-    searchTimeouts.current[key] = setTimeout(async () => {
-      try {
-        const results = await searchPlaces(value);
-        if (searchRequestIds.current[key] === requestId) {
-          setter(results);
-        }
-      } catch (error) {
-        if (searchRequestIds.current[key] === requestId) {
-          setter([]);
-          setErrorMessage(error.response?.data?.message || "Location search is temporarily unavailable.");
-        }
-      }
-    }, 300);
-  };
-
-  const toggleFilter = (filterId) => {
-    setSelectedFilters((current) => {
-      if (current.includes(filterId)) {
-        return current.length === 1
-          ? current
-          : current.filter((item) => item !== filterId);
-      }
-      return [...current, filterId];
-    });
-  };
+  const toggleFilter = useCallback((filterId) => {
+    setSelectedFilters((prev) =>
+      prev.includes(filterId)
+        ? prev.filter((id) => id !== filterId)
+        : [...prev, filterId]
+    );
+  }, []);
 
   const loadTripHistory = useCallback(async () => {
     if (!isOnline || !session) {
@@ -220,7 +263,7 @@ export function useTripPlanner(session, isOnline) {
     }
 
     if (!start.trim() || !destination.trim()) {
-      setErrorMessage("Enter both locations to plan a trip.");
+      setErrorMessage("Enter both start and destination locations to plan a trip.");
       return;
     }
 
@@ -228,14 +271,21 @@ export function useTripPlanner(session, isOnline) {
       setLoading(true);
       setErrorMessage("");
 
+      const validWaypoints = waypoints.filter((w) => w && w.trim().length > 1);
+
       const plannedTrip = await planTripRequest({
         start,
         destination,
+        waypoints: validWaypoints,
+        optimize,
+        avoidTolls,
+        avoidHighways,
         filters: selectedFilters,
       });
 
-      // Save valid start & destination into recent searches
+      // Save valid start, waypoints & destination into recent searches
       addRecentSearch(start);
+      validWaypoints.forEach((w) => addRecentSearch(w));
       addRecentSearch(destination);
 
       setFocusedSafetyPlace(null);
@@ -271,28 +321,28 @@ export function useTripPlanner(session, isOnline) {
     }
   };
 
-  const applyHistoryTrip = (trip, onApply) => {
-    if (onApply) onApply();
-    setStart(trip.startQuery);
-    setDestination(trip.destinationQuery);
-    setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
+  const selectHistoryTrip = (trip) => {
+    setStart(trip.start?.name || trip.startQuery || "");
+    setDestination(trip.destination?.name || trip.destinationQuery || "");
+    if (Array.isArray(trip.waypoints)) {
+      setWaypoints(trip.waypoints.map((w) => w.name || ""));
+    } else {
+      setWaypoints([]);
+    }
     setRoute(tripFromHistory(trip));
     setFocusedSafetyPlace(null);
-    clearSearchState("start", setStartSuggestions);
-    clearSearchState("destination", setDestSuggestions);
-    setErrorMessage("");
   };
 
-  const openOfflineTrip = (trip, onOpen) => {
-    if (onOpen) onOpen();
-    setStart(trip.startQuery);
-    setDestination(trip.destinationQuery);
-    setSelectedFilters(trip.filters?.length ? trip.filters : ALL_FILTER_IDS);
-    setRoute(routeFromOfflineTrip(trip));
+  const loadOfflineTripIntoPlanner = (offlineTrip) => {
+    setStart(offlineTrip.start?.name || offlineTrip.startQuery || "");
+    setDestination(offlineTrip.destination?.name || offlineTrip.destinationQuery || "");
+    if (Array.isArray(offlineTrip.waypoints)) {
+      setWaypoints(offlineTrip.waypoints.map((w) => w.name || ""));
+    } else {
+      setWaypoints([]);
+    }
+    setRoute(routeFromOfflineTrip(offlineTrip));
     setFocusedSafetyPlace(null);
-    clearSearchState("start", setStartSuggestions);
-    clearSearchState("destination", setDestSuggestions);
-    setErrorMessage("");
   };
 
   return {
@@ -300,35 +350,46 @@ export function useTripPlanner(session, isOnline) {
     setStart,
     destination,
     setDestination,
+    waypoints,
+    waypointSuggestions,
+    setWaypointSuggestions,
+    addWaypoint,
+    removeWaypoint,
+    updateWaypoint,
+    moveWaypointUp,
+    moveWaypointDown,
+    avoidTolls,
+    setAvoidTolls,
+    avoidHighways,
+    setAvoidHighways,
+    optimize,
+    setOptimize,
     route,
     setRoute,
     history,
-    setHistory,
     loading,
     historyLoading,
     errorMessage,
     setErrorMessage,
     startSuggestions,
-    setStartSuggestions,
     destSuggestions,
-    setDestSuggestions,
     selectedFilters,
-    setSelectedFilters,
     focusedSafetyPlace,
     setFocusedSafetyPlace,
     locationStatus,
     locationMessage,
     recentSearches,
-    addRecentSearch,
     clearRecentSearches,
     detectCurrentLocation,
     handleSearch,
     clearSearchState,
+    setStartSuggestions,
+    setDestSuggestions,
     toggleFilter,
     planTrip,
-    loadTripHistory,
     handleFavoriteToggle,
-    applyHistoryTrip,
-    openOfflineTrip,
+    selectHistoryTrip,
+    loadOfflineTripIntoPlanner,
+    addRecentSearch,
   };
 }

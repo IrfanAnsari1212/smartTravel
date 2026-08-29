@@ -6,6 +6,7 @@ const {
   listTrips,
   toggleFavorite,
 } = require("../services/tripStore");
+const { optimizeWaypoints } = require("../utils/routeOptimizer");
 
 const DEFAULT_TYPES = [
   "attraction",
@@ -24,6 +25,10 @@ const ALL_TYPES = DEFAULT_TYPES;
 const planTripSchema = z.object({
   start: z.string().trim().min(2, "Start location must be at least 2 characters."),
   destination: z.string().trim().min(2, "Destination must be at least 2 characters."),
+  waypoints: z.array(z.string().trim().min(1)).max(8).optional(),
+  optimize: z.boolean().optional(),
+  avoidTolls: z.boolean().optional(),
+  avoidHighways: z.boolean().optional(),
   filters: z.array(z.string()).optional(),
   maxPlaces: z.coerce.number().min(1).max(50).optional(),
 });
@@ -76,13 +81,29 @@ const planTrip = async (req, res, next) => {
     const {
       start,
       destination,
+      waypoints = [],
+      optimize = false,
+      avoidTolls = false,
+      avoidHighways = false,
       filters = DEFAULT_TYPES,
       maxPlaces = 20,
     } = planTripSchema.parse(req.body);
 
-    const startCoords = await getCoordinates(start);
-    const destCoords = await getCoordinates(destination);
-    const route = await getRoute(startCoords, destCoords);
+    const validWaypointStrings = waypoints.filter((w) => typeof w === "string" && w.trim().length > 1);
+
+    const [startCoords, destCoords, ...waypointCoords] = await Promise.all([
+      getCoordinates(start),
+      getCoordinates(destination),
+      ...validWaypointStrings.map((w) => getCoordinates(w)),
+    ]);
+
+    let orderedWaypoints = waypointCoords;
+    if (optimize && waypointCoords.length > 1) {
+      orderedWaypoints = optimizeWaypoints(startCoords, waypointCoords, destCoords);
+    }
+
+    const allRoutePoints = [startCoords, ...orderedWaypoints, destCoords];
+    const route = await getRoute(allRoutePoints);
     const coordinates = route.geometry.coordinates;
 
     // Sample along the route: Start, ~25%, ~50%, ~75%, Destination
@@ -137,6 +158,12 @@ const planTrip = async (req, res, next) => {
       destinationQuery: destination,
       start: startCoords,
       destination: destCoords,
+      waypoints: orderedWaypoints,
+      options: {
+        avoidTolls: Boolean(avoidTolls),
+        avoidHighways: Boolean(avoidHighways),
+        optimized: Boolean(optimize && waypointCoords.length > 1),
+      },
       filters: placeFilters,
       distance: route.distance,
       duration: route.duration,
@@ -154,6 +181,8 @@ const planTrip = async (req, res, next) => {
       tripId: savedTrip.id,
       start: startCoords,
       destination: destCoords,
+      waypoints: savedTrip.waypoints || orderedWaypoints || [],
+      options: savedTrip.options || { avoidTolls, avoidHighways, optimized: optimize },
       distance: route.distance,
       duration: route.duration,
       geometry: route.geometry,

@@ -6,6 +6,18 @@ export default function RoutePlannerForm({
   setStart,
   destination,
   setDestination,
+  waypoints = [],
+  addWaypoint,
+  removeWaypoint,
+  updateWaypoint,
+  moveWaypointUp,
+  moveWaypointDown,
+  avoidTolls = false,
+  setAvoidTolls,
+  avoidHighways = false,
+  setAvoidHighways,
+  optimize = false,
+  setOptimize,
   startSuggestions,
   destSuggestions,
   selectedFilters,
@@ -25,12 +37,13 @@ export default function RoutePlannerForm({
   locationStatus,
   locationMessage,
   recentSearches = [],
-  clearRecentSearches,
   detectCurrentLocation,
   addRecentSearch,
 }) {
   const [startFocused, setStartFocused] = useState(false);
   const [destFocused, setDestFocused] = useState(false);
+  const [waypointFocusIndex, setWaypointFocusIndex] = useState(null);
+  const [waypointSuggestionsMap, setWaypointSuggestionsMap] = useState({});
   const [startHighlightIndex, setStartHighlightIndex] = useState(-1);
   const [destHighlightIndex, setDestHighlightIndex] = useState(-1);
 
@@ -90,23 +103,42 @@ export default function RoutePlannerForm({
     }
   };
 
+  const handleWaypointSearch = (index, value) => {
+    updateWaypoint(index, value);
+    handleSearch(
+      value,
+      (list) => {
+        setWaypointSuggestionsMap((prev) => ({ ...prev, [index]: list }));
+      },
+      `waypoint-${index}`
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid gap-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4 md:grid-cols-[1fr_1fr_auto]">
-        {/* Start / From input */}
+    <section className="space-y-4 rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-md">
+      <div className="space-y-3">
+        {/* Start Location Input */}
         <div className="relative">
           <div className="mb-2 flex items-center justify-between">
-            <label htmlFor="start-location-input" className="block text-sm text-slate-300">
-              From (Start Location)
+            <label htmlFor="start-location-input" className="block text-sm font-medium text-slate-300">
+              🟢 From (Start Location)
             </label>
-            {locationStatus === "locating" && (
-              <span className="text-xs text-cyan-300 animate-pulse">Detecting GPS...</span>
-            )}
-            {locationStatus === "found" && (
-              <span className="text-xs text-emerald-300">Current location active</span>
-            )}
-            {locationStatus === "denied" && (
-              <span className="text-xs text-amber-300">GPS permission denied</span>
+            {locationStatus !== "idle" && (
+              <span
+                className={`text-xs ${
+                  locationStatus === "found"
+                    ? "text-emerald-400"
+                    : locationStatus === "locating"
+                      ? "text-cyan-400"
+                      : "text-amber-400"
+                }`}
+              >
+                {locationStatus === "locating"
+                  ? "Locating..."
+                  : locationStatus === "found"
+                    ? "GPS Located"
+                    : "GPS permission denied"}
+              </span>
             )}
           </div>
 
@@ -117,7 +149,7 @@ export default function RoutePlannerForm({
               aria-autocomplete="list"
               aria-expanded={startSuggestions.length > 0 || (startFocused && !start.trim() && recentSearches.length > 0)}
               aria-controls="start-suggestions-list"
-              placeholder="Enter a starting city or use GPS"
+              placeholder="Enter starting city or use GPS"
               value={start}
               onFocus={() => setStartFocused(true)}
               onBlur={() => setTimeout(() => setStartFocused(false), 200)}
@@ -128,7 +160,7 @@ export default function RoutePlannerForm({
                 handleSearch(value, setStartSuggestions, "start");
               }}
               onKeyDown={handleStartKeyDown}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-900 py-3 pl-4 pr-20 text-slate-100 outline-none transition focus:border-cyan-400"
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-4 pr-20 text-slate-100 outline-none transition focus:border-cyan-400"
             />
 
             <div className="absolute right-2 flex items-center gap-1">
@@ -143,9 +175,7 @@ export default function RoutePlannerForm({
                   }}
                   className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               )}
 
@@ -163,32 +193,17 @@ export default function RoutePlannerForm({
                       : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-cyan-200"
                 }`}
               >
-                {locationStatus === "locating" ? (
-                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                    />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
+                📍
               </button>
             </div>
           </div>
 
-          {/* Start suggestions & recent searches dropdown */}
+          {/* Start suggestions */}
           {startSuggestions.length > 0 && (
             <ul
               id="start-suggestions-list"
               role="listbox"
-              className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-xl"
+              className="absolute z-30 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-xl"
             >
               {startSuggestions.map((item, index) => (
                 <li
@@ -214,56 +229,116 @@ export default function RoutePlannerForm({
               ))}
             </ul>
           )}
+        </div>
 
-          {startFocused && !start.trim() && recentSearches.length > 0 && startSuggestions.length === 0 && (
-            <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
-              <div className="flex items-center justify-between px-3 py-1 text-xs uppercase tracking-wider text-slate-400">
-                <span>Recent Searches</span>
-                {clearRecentSearches && (
+        {/* Dynamic Waypoint Stops */}
+        {waypoints.map((stop, index) => (
+          <div key={index} className="relative rounded-2xl border border-slate-800 bg-slate-950/60 p-3 space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="font-semibold text-cyan-300 flex items-center gap-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-bold border border-cyan-500/30">
+                  {index + 1}
+                </span>
+                Stop {index + 1}
+              </span>
+              <div className="flex items-center gap-1">
+                {index > 0 && (
                   <button
                     type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      clearRecentSearches();
-                    }}
-                    className="text-cyan-300 hover:underline"
+                    onClick={() => moveWaypointUp(index)}
+                    title="Move stop up"
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
                   >
-                    Clear
+                    ⬆️
                   </button>
                 )}
+                {index < waypoints.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={() => moveWaypointDown(index)}
+                    title="Move stop down"
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  >
+                    ⬇️
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeWaypoint(index)}
+                  title="Remove stop"
+                  className="rounded-lg p-1 text-rose-400 hover:bg-rose-500/10"
+                >
+                  ✕
+                </button>
               </div>
-              <ul role="listbox">
-                {recentSearches.map((item, index) => (
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={`Enter stop ${index + 1} city or landmark`}
+                value={stop}
+                onFocus={() => setWaypointFocusIndex(index)}
+                onBlur={() => setTimeout(() => setWaypointFocusIndex(null), 200)}
+                onChange={(e) => handleWaypointSearch(index, e.target.value)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 pl-3 pr-10 text-sm text-slate-100 outline-none focus:border-cyan-400"
+              />
+            </div>
+
+            {/* Waypoint suggestions dropdown */}
+            {waypointFocusIndex === index && (waypointSuggestionsMap[index] || []).length > 0 && (
+              <ul className="absolute z-30 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                {(waypointSuggestionsMap[index] || []).map((item) => (
                   <li
-                    key={item}
-                    role="option"
-                    aria-selected={startHighlightIndex === index}
-                    className={`cursor-pointer rounded-xl px-3 py-2 text-sm transition ${
-                      startHighlightIndex === index
-                        ? "bg-cyan-950/80 text-cyan-200"
-                        : "text-slate-300 hover:bg-slate-800"
-                    }`}
+                    key={item.placeId}
+                    className="cursor-pointer border-b border-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800"
                     onMouseDown={() => {
-                      setStart(item);
-                      clearSearchState("start", setStartSuggestions);
+                      updateWaypoint(index, item.displayName);
+                      setWaypointSuggestionsMap((prev) => ({ ...prev, [index]: [] }));
                     }}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500">🕒</span>
-                      <span className="truncate">{item}</span>
-                    </div>
+                    📍 {item.displayName}
                   </li>
                 ))}
               </ul>
-            </div>
+            )}
+          </div>
+        ))}
+
+        {/* Add Stop & Optimize Stop Order Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          {waypoints.length < 5 && (
+            <button
+              type="button"
+              onClick={addWaypoint}
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/80 px-3.5 py-1.5 text-xs font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+            >
+              <span>➕</span>
+              <span>Add Stop</span>
+            </button>
+          )}
+
+          {waypoints.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setOptimize(!optimize)}
+              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+                optimize
+                  ? "border-emerald-400 bg-emerald-400/20 text-emerald-300"
+                  : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
+              }`}
+            >
+              <span>⚡</span>
+              <span>{optimize ? "Stop Order: Optimized (Shortest)" : "Optimize Stop Order"}</span>
+            </button>
           )}
         </div>
 
-        {/* Destination / To input */}
-        <div className="relative">
+        {/* Destination Location Input */}
+        <div className="relative pt-1">
           <div className="mb-2 flex items-center justify-between">
-            <label htmlFor="destination-location-input" className="block text-sm text-slate-300">
-              To (Destination)
+            <label htmlFor="destination-location-input" className="block text-sm font-medium text-slate-300">
+              🏁 To (Destination)
             </label>
           </div>
 
@@ -285,7 +360,7 @@ export default function RoutePlannerForm({
                 handleSearch(value, setDestSuggestions, "destination");
               }}
               onKeyDown={handleDestKeyDown}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-900 py-3 pl-4 pr-12 text-slate-100 outline-none transition focus:border-cyan-400"
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-4 pr-12 text-slate-100 outline-none transition focus:border-cyan-400"
             />
 
             {destination && (
@@ -299,9 +374,7 @@ export default function RoutePlannerForm({
                 }}
                 className="absolute right-2 rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             )}
           </div>
@@ -311,7 +384,7 @@ export default function RoutePlannerForm({
             <ul
               id="dest-suggestions-list"
               role="listbox"
-              className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-xl"
+              className="absolute z-30 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-xl"
             >
               {destSuggestions.map((item, index) => (
                 <li
@@ -337,58 +410,41 @@ export default function RoutePlannerForm({
               ))}
             </ul>
           )}
-
-          {destFocused && !destination.trim() && recentSearches.length > 0 && destSuggestions.length === 0 && (
-            <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
-              <div className="flex items-center justify-between px-3 py-1 text-xs uppercase tracking-wider text-slate-400">
-                <span>Recent Searches</span>
-                {clearRecentSearches && (
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      clearRecentSearches();
-                    }}
-                    className="text-cyan-300 hover:underline"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <ul role="listbox">
-                {recentSearches.map((item, index) => (
-                  <li
-                    key={item}
-                    role="option"
-                    aria-selected={destHighlightIndex === index}
-                    className={`cursor-pointer rounded-xl px-3 py-2 text-sm transition ${
-                      destHighlightIndex === index
-                        ? "bg-cyan-950/80 text-cyan-200"
-                        : "text-slate-300 hover:bg-slate-800"
-                    }`}
-                    onMouseDown={() => {
-                      setDestination(item);
-                      clearSearchState("destination", setDestSuggestions);
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500">🕒</span>
-                      <span className="truncate">{item}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
 
-        {/* Plan Trip Button */}
-        <div className="flex items-end">
+        {/* Routing Avoidance Preferences & Plan Button */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAvoidTolls(!avoidTolls)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                avoidTolls
+                  ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
+                  : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
+              }`}
+            >
+              🚫 Avoid Tolls
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAvoidHighways(!avoidHighways)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                avoidHighways
+                  ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
+                  : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
+              }`}
+            >
+              🛣️ Avoid Highways
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={planTrip}
             disabled={loading || !isOnline}
-            className="w-full rounded-2xl bg-cyan-400 px-6 py-3 font-medium text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-cyan-800 disabled:text-slate-300 md:w-auto"
+            className="w-full sm:w-auto rounded-2xl bg-cyan-400 px-7 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-cyan-800 disabled:text-slate-400 shadow-lg shadow-cyan-500/20"
           >
             {loading ? "Planning..." : isOnline ? "Plan Trip" : "Offline"}
           </button>
@@ -409,7 +465,8 @@ export default function RoutePlannerForm({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
+      {/* Categories Filters */}
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/80">
         {PLACE_FILTERS.map((filter) => {
           const active = selectedFilters.includes(filter.id);
 
@@ -418,10 +475,10 @@ export default function RoutePlannerForm({
               key={filter.id}
               type="button"
               onClick={() => toggleFilter(filter.id)}
-              className={`rounded-full border px-4 py-2 text-sm transition ${
+              className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
                 active
                   ? "border-cyan-300 bg-cyan-400/15 text-cyan-100"
-                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
+                  : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
               }`}
             >
               {filter.label}
@@ -430,11 +487,12 @@ export default function RoutePlannerForm({
         })}
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      {/* Offline Action Bar */}
+      <div className="flex flex-wrap gap-2.5 pt-2">
         <button
           type="button"
           onClick={onImportClick}
-          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
+          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
         >
           Import Offline Pack
         </button>
@@ -443,14 +501,14 @@ export default function RoutePlannerForm({
             <button
               type="button"
               onClick={onSaveOffline}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
+              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
             >
               Save Current Trip Offline
             </button>
             <button
               type="button"
               onClick={onDownloadPack}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
+              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
             >
               Download Trip Pack
             </button>
@@ -459,10 +517,10 @@ export default function RoutePlannerForm({
       </div>
 
       {errorMessage && (
-        <div className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
-          {errorMessage}
-        </div>
+        <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+          ⚠️ {errorMessage}
+        </p>
       )}
-    </div>
+    </section>
   );
 }

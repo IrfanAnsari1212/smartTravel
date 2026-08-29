@@ -116,6 +116,39 @@ test("osrmAdapter parses route response and extracts turn-by-turn steps", async 
   assert.match(route.steps[2].instruction, /arrived/);
 });
 
+test("osrmAdapter supports multi-waypoint coordinate arrays", async (t) => {
+  const originalGet = axios.get;
+  t.after(() => { axios.get = originalGet; });
+
+  let calledUrl = "";
+  axios.get = async (url) => {
+    calledUrl = url;
+    return {
+      data: {
+        routes: [
+          {
+            distance: 210000,
+            duration: 9000,
+            geometry: { coordinates: [[77.2, 28.6], [77.6, 27.5], [78.0, 27.2]], type: "LineString" },
+            legs: [{ steps: [] }, { steps: [] }],
+          },
+        ],
+      },
+    };
+  };
+
+  const points = [
+    { lon: 77.2, lat: 28.6, name: "Delhi" },
+    { lon: 77.6, lat: 27.5, name: "Mathura" },
+    { lon: 78.0, lat: 27.2, name: "Agra" },
+  ];
+
+  const route = await queryOsrmRoute(points);
+  assert.ok(calledUrl.includes("77.2,28.6;77.6,27.5;78,27.2"));
+  assert.equal(route.distance, 210000);
+  assert.equal(route.legs.length, 2);
+});
+
 test("overpassAdapter maps network failures to 503", async (t) => {
   const originalPost = axios.post;
   t.after(() => { axios.post = originalPost; });
