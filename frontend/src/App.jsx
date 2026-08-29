@@ -11,6 +11,7 @@ import LiveNavigationPanel from "./components/route/LiveNavigationPanel";
 import RoutePlannerForm from "./components/route/RoutePlannerForm";
 import TripSummaryPanel from "./components/route/TripSummaryPanel";
 import RecommendedStops from "./components/stops/RecommendedStops";
+import AITravelAssistant from "./components/ai/AITravelAssistant";
 
 import { AuthProvider } from "./context/AuthProvider";
 import { useAuthContext } from "./context/useAuthContext";
@@ -302,6 +303,9 @@ function SmartTravelDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Floating AI Travel Assistant */}
+      <AITravelAssistant route={planner.route} />
     </div>
   );
 }
