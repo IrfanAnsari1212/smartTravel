@@ -268,12 +268,15 @@ function SmartTravelDashboard() {
                       progressPercent={navigation.progressPercent}
                       distanceToNextManeuver={navigation.distanceToNextManeuver}
                       liveDistanceToDestination={navigation.liveDistanceToDestination}
+                      deviationInfo={navigation.deviationInfo}
+                      dynamicEta={navigation.dynamicEta}
                       setSimulationSpeedMultiplier={navigation.setSimulationSpeedMultiplier}
                       startTrip={() => navigation.startTrip(planner.setErrorMessage)}
                       stopTrip={navigation.stopTrip}
                       startSimulation={navigation.startSimulation}
                       pauseSimulation={navigation.pauseSimulation}
                       resetSimulation={navigation.resetSimulation}
+                      onRecalculateRoute={planner.recalculateOptimizedRoute}
                     />
 
                     <MultiDayItineraryPanel
