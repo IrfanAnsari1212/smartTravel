@@ -90,3 +90,4 @@ test("generateIntelligentFallbackReply drafts a multi-part schedule for itinerar
   assert.match(response.reply, /Evening \/ Arrival/);
   assert.ok(response.recommendedPlaces.length >= 1);
 });
+

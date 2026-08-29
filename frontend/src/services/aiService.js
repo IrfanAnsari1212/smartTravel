@@ -35,3 +35,4 @@ export const requestAITripItinerary = async ({
   );
   return response.data;
 };
+

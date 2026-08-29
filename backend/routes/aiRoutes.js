@@ -10,3 +10,4 @@ router.post("/chat", chatWithAssistant);
 router.post("/itinerary", generateItinerary);
 
 module.exports = router;
+
