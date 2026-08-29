@@ -8,6 +8,8 @@ const {
   toggleFavorite,
 } = require("../services/tripStore");
 const { optimizeWaypoints } = require("../utils/routeOptimizer");
+const { buildInitialMultiDayItinerary, recalculateDaySchedule } = require("../utils/itineraryEngine");
+const Trip = require("../models/Trip");
 
 const DEFAULT_TYPES = [
   "attraction",
@@ -153,6 +155,13 @@ const planTrip = async (req, res, next) => {
     );
     const emergencyServices = finalizeEmergencyServices(emergencyServiceMaps);
 
+    const initialDays = buildInitialMultiDayItinerary(
+      startCoords,
+      destCoords,
+      orderedWaypoints,
+      places
+    );
+
     const savedTrip = await saveTrip({
       userId: req.user.id,
       startQuery: start,
@@ -170,6 +179,7 @@ const planTrip = async (req, res, next) => {
       duration: route.duration,
       geometry: route.geometry,
       steps: route.steps || [],
+      days: initialDays,
       places,
       emergencyServices,
       placeLookup: {
@@ -188,6 +198,7 @@ const planTrip = async (req, res, next) => {
       duration: route.duration,
       geometry: route.geometry,
       steps: savedTrip.steps || route.steps || [],
+      days: savedTrip.days || initialDays,
       places,
       emergencyServices: savedTrip.emergencyServices || EMPTY_EMERGENCY_SERVICES,
       filters: placeFilters,
@@ -218,8 +229,45 @@ const updateFavoriteTrip = async (req, res, next) => {
   }
 };
 
+const updateTripItinerary = async (req, res, next) => {
+  try {
+    const { days } = req.body;
+    if (!Array.isArray(days)) {
+      const error = new Error("Days array is required");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const trip = await Trip.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!trip) {
+      const error = new Error("Trip not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Recalculate schedule for each day
+    const recalculatedDays = days.map((day, idx) =>
+      recalculateDaySchedule({
+        ...day,
+        dayNumber: idx + 1,
+      })
+    );
+
+    trip.days = recalculatedDays;
+    await trip.save();
+
+    res.json({
+      message: "Itinerary updated successfully",
+      days: trip.days,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   planTrip,
   getTripHistory,
   updateFavoriteTrip,
+  updateTripItinerary,
 };

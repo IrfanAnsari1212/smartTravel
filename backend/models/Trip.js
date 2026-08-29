@@ -41,6 +41,38 @@ const stepSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const stopSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
+    name: { type: String, required: true },
+    lat: Number,
+    lon: Number,
+    address: { type: String, default: "" },
+    category: { type: String, default: "attraction" },
+    notes: { type: String, default: "" },
+    estimatedArrival: { type: String, default: "09:00" },
+    departureTime: { type: String, default: "11:00" },
+    durationMinutes: { type: Number, default: 120 },
+    distanceFromPrevKm: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const daySchema = new mongoose.Schema(
+  {
+    dayNumber: { type: Number, required: true },
+    title: { type: String, default: "" },
+    date: { type: String, default: "" },
+    startLocation: { type: pointSchema },
+    endLocation: { type: pointSchema },
+    stops: { type: [stopSchema], default: [] },
+    totalDistanceKm: { type: Number, default: 0 },
+    totalDurationMinutes: { type: Number, default: 0 },
+    notes: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const tripOptionsSchema = new mongoose.Schema(
   {
     avoidTolls: { type: Boolean, default: false },
@@ -78,6 +110,7 @@ const tripSchema = new mongoose.Schema(
       },
     },
     steps: { type: [stepSchema], default: [] },
+    days: { type: [daySchema], default: [] },
     places: { type: [placeSchema], default: [] },
     emergencyServices: {
       fuel: { type: [placeSchema], default: [] },

@@ -14,6 +14,7 @@ import RecommendedStops from "./components/stops/RecommendedStops";
 import AITravelAssistant from "./components/ai/AITravelAssistant";
 import EmergencyHubModal from "./components/emergency/EmergencyHubModal";
 import HotelSearchModal from "./components/hotels/HotelSearchModal";
+import MultiDayItineraryPanel from "./components/itinerary/MultiDayItineraryPanel";
 
 import { AuthProvider } from "./context/AuthProvider";
 import { useAuthContext } from "./context/useAuthContext";
@@ -273,6 +274,13 @@ function SmartTravelDashboard() {
                       startSimulation={navigation.startSimulation}
                       pauseSimulation={navigation.pauseSimulation}
                       resetSimulation={navigation.resetSimulation}
+                    />
+
+                    <MultiDayItineraryPanel
+                      route={planner.route}
+                      isOnline={isOnline}
+                      session={auth.session}
+                      onItineraryUpdated={planner.loadTripHistory}
                     />
 
                     <EmergencyPanel
