@@ -86,33 +86,43 @@ export default function HotelSearchModal({
   }, [targetType, route, currentLocation, customQuery, radius, checkIn, checkOut, guests, rooms]);
 
   useEffect(() => {
-    if (isOpen) {
-      handleSearch();
-    }
-  }, [isOpen, handleSearch]);
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
-      <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-indigo-500/40 bg-slate-950 shadow-2xl shadow-indigo-950/50 text-slate-100">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="hotel-search-title"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/85 p-2 sm:p-4 backdrop-blur-md"
+    >
+      <div className="relative flex max-h-[92vh] max-sm:h-full max-sm:max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl max-sm:rounded-2xl border border-indigo-500/40 bg-slate-950 shadow-2xl shadow-indigo-950/50 text-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-indigo-500/30 bg-indigo-500/10 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-indigo-500/30 bg-indigo-500/10 px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/20 text-2xl border border-indigo-500/30">
               🏨
             </span>
             <div>
-              <h2 className="text-lg font-bold text-white">Hotel & Room Search</h2>
-              <p className="text-xs text-indigo-300">
+              <h2 id="hotel-search-title" className="text-base sm:text-lg font-bold text-white">Hotel & Room Search</h2>
+              <p className="text-[11px] sm:text-xs text-indigo-300">
                 Live verified accommodation directory & direct provider availability
               </p>
             </div>
           </div>
           <button
             type="button"
+            aria-label="Close hotel search"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-white"
           >
             ✕
           </button>

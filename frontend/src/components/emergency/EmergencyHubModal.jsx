@@ -183,6 +183,16 @@ export default function EmergencyHubModal({
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const lat = currentLocation?.lat || route?.start?.lat || 0;
@@ -190,25 +200,31 @@ export default function EmergencyHubModal({
   const currentAddress = nearbyData?.location?.address || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
-      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-rose-500/40 bg-slate-950 shadow-2xl shadow-rose-950/50 text-slate-100">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="emergency-hub-title"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/85 p-2 sm:p-4 backdrop-blur-md"
+    >
+      <div className="relative flex max-h-[92vh] max-sm:h-full max-sm:max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-3xl max-sm:rounded-2xl border border-rose-500/40 bg-slate-950 shadow-2xl shadow-rose-950/50 text-slate-100">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-500/10 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-500/10 px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-500/20 text-2xl border border-rose-500/30 animate-pulse">
               🚨
             </span>
             <div>
-              <h2 className="text-lg font-bold text-white">Emergency Support Hub</h2>
-              <p className="text-xs text-rose-300">
+              <h2 id="emergency-hub-title" className="text-base sm:text-lg font-bold text-white">Emergency Support Hub</h2>
+              <p className="text-[11px] sm:text-xs text-rose-300">
                 Immediate safety access, contacts, and emergency calling
               </p>
             </div>
           </div>
           <button
             type="button"
+            aria-label="Close emergency hub"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-white"
           >
             ✕
           </button>

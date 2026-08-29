@@ -310,8 +310,9 @@ export default function RoutePlannerForm({
           {waypoints.length < 5 && (
             <button
               type="button"
+              aria-label="Add intermediate stop"
               onClick={addWaypoint}
-              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/80 px-3.5 py-1.5 text-xs font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 min-h-[44px]"
             >
               <span>➕</span>
               <span>Add Stop</span>
@@ -321,8 +322,9 @@ export default function RoutePlannerForm({
           {waypoints.length > 1 && (
             <button
               type="button"
+              aria-label="Toggle shortest stop sequence optimization"
               onClick={() => setOptimize(!optimize)}
-              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+              className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition min-h-[44px] ${
                 optimize
                   ? "border-emerald-400 bg-emerald-400/20 text-emerald-300"
                   : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
@@ -360,7 +362,7 @@ export default function RoutePlannerForm({
                 handleSearch(value, setDestSuggestions, "destination");
               }}
               onKeyDown={handleDestKeyDown}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-4 pr-12 text-slate-100 outline-none transition focus:border-cyan-400"
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-4 pr-12 text-slate-100 outline-none transition focus:border-cyan-400 min-h-[48px]"
             />
 
             {destination && (
@@ -372,7 +374,7 @@ export default function RoutePlannerForm({
                   setDestination("");
                   clearSearchState("destination", setDestSuggestions);
                 }}
-                className="absolute right-2 rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-slate-200"
               >
                 ✕
               </button>
@@ -417,8 +419,9 @@ export default function RoutePlannerForm({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              aria-label="Toggle toll road avoidance"
               onClick={() => setAvoidTolls(!avoidTolls)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              className={`rounded-full border px-4 py-2 text-xs font-medium transition min-h-[42px] flex items-center justify-center ${
                 avoidTolls
                   ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
                   : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
@@ -429,8 +432,9 @@ export default function RoutePlannerForm({
 
             <button
               type="button"
+              aria-label="Toggle highway avoidance"
               onClick={() => setAvoidHighways(!avoidHighways)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              className={`rounded-full border px-4 py-2 text-xs font-medium transition min-h-[42px] flex items-center justify-center ${
                 avoidHighways
                   ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
                   : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
@@ -442,9 +446,10 @@ export default function RoutePlannerForm({
 
           <button
             type="button"
+            aria-label="Plan and calculate trip route"
             onClick={planTrip}
             disabled={loading || !isOnline}
-            className="w-full sm:w-auto rounded-2xl bg-cyan-400 px-7 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-cyan-800 disabled:text-slate-400 shadow-lg shadow-cyan-500/20"
+            className="w-full sm:w-auto rounded-2xl bg-cyan-400 px-7 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-cyan-800 disabled:text-slate-400 shadow-lg shadow-cyan-500/20 min-h-[48px] flex items-center justify-center"
           >
             {loading ? "Planning..." : isOnline ? "Plan Trip" : "Offline"}
           </button>
@@ -474,8 +479,9 @@ export default function RoutePlannerForm({
             <button
               key={filter.id}
               type="button"
+              aria-label={`Filter by ${filter.label}`}
               onClick={() => toggleFilter(filter.id)}
-              className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
+              className={`rounded-full border px-4 py-2 text-xs font-medium transition min-h-[42px] flex items-center justify-center ${
                 active
                   ? "border-cyan-300 bg-cyan-400/15 text-cyan-100"
                   : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
@@ -491,8 +497,9 @@ export default function RoutePlannerForm({
       <div className="flex flex-wrap gap-2.5 pt-2">
         <button
           type="button"
+          aria-label="Import offline trip JSON pack"
           onClick={onImportClick}
-          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
+          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100 min-h-[44px] flex items-center justify-center"
         >
           Import Offline Pack
         </button>
@@ -500,15 +507,17 @@ export default function RoutePlannerForm({
           <>
             <button
               type="button"
+              aria-label="Save current planned trip to local device storage"
               onClick={onSaveOffline}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
+              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100 min-h-[44px] flex items-center justify-center"
             >
               Save Current Trip Offline
             </button>
             <button
               type="button"
+              aria-label="Download offline trip pack as JSON file"
               onClick={onDownloadPack}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
+              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100 min-h-[44px] flex items-center justify-center"
             >
               Download Trip Pack
             </button>
@@ -517,7 +526,7 @@ export default function RoutePlannerForm({
       </div>
 
       {errorMessage && (
-        <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+        <p role="alert" aria-live="assertive" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
           ⚠️ {errorMessage}
         </p>
       )}

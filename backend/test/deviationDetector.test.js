@@ -34,3 +34,4 @@ test("getDistanceToSegmentMath accurately calculates on-route vs off-route dista
   const offRouteDist = getDistanceToSegmentMath(offRoute, segA, segB);
   assert.ok(offRouteDist > 900 && offRouteDist < 1100, `Expected ~1000m, got ${offRouteDist}`);
 });
+

@@ -270,13 +270,16 @@ export default function MultiDayItineraryPanel({
       )}
 
       {/* Days Tabs Bar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div role="tablist" aria-label="Trip Days" className="flex flex-wrap items-center gap-2">
         {days.map((day, idx) => (
           <button
             key={day.dayNumber || idx}
             type="button"
+            role="tab"
+            aria-selected={activeDayIndex === idx}
+            aria-controls={`day-panel-${idx}`}
             onClick={() => setActiveDayIndex(idx)}
-            className={`rounded-2xl px-4 py-2 text-xs font-semibold transition ${
+            className={`rounded-2xl px-4 py-2.5 text-xs font-semibold min-h-[44px] transition ${
               activeDayIndex === idx
                 ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30 font-bold"
                 : "bg-slate-850 text-slate-300 border border-slate-800 hover:bg-slate-800"
@@ -290,8 +293,9 @@ export default function MultiDayItineraryPanel({
         {days.length < 7 && (
           <button
             type="button"
+            aria-label="Add a new trip day"
             onClick={handleAddDay}
-            className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-400 hover:border-cyan-400 hover:text-cyan-300"
+            className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 px-3.5 py-2.5 text-xs font-medium text-slate-400 hover:border-cyan-400 hover:text-cyan-300 min-h-[44px]"
           >
             ➕ Add Day
           </button>
@@ -529,13 +533,14 @@ export default function MultiDayItineraryPanel({
                     </div>
 
                     {/* Actions: Reorder, Move Day, Edit, Delete */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
                       {idx > 0 && (
                         <button
                           type="button"
+                          aria-label={`Move ${stop.name} up`}
                           onClick={() => moveStopUp(idx)}
                           title="Move Up"
-                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white"
                         >
                           ⬆️
                         </button>
@@ -543,9 +548,10 @@ export default function MultiDayItineraryPanel({
                       {idx < currentDay.stops.length - 1 && (
                         <button
                           type="button"
+                          aria-label={`Move ${stop.name} down`}
                           onClick={() => moveStopDown(idx)}
                           title="Move Down"
-                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white"
                         >
                           ⬇️
                         </button>
@@ -554,10 +560,11 @@ export default function MultiDayItineraryPanel({
                       {/* Move to another day selector */}
                       {days.length > 1 && (
                         <select
+                          aria-label={`Move ${stop.name} to another day`}
                           title="Move to Day..."
                           value=""
                           onChange={(e) => moveStopToDay(idx, Number(e.target.value))}
-                          className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-cyan-300 outline-none hover:border-slate-700"
+                          className="h-9 rounded-xl border border-slate-800 bg-slate-900 px-2.5 text-[11px] font-medium text-cyan-300 outline-none hover:border-slate-700"
                         >
                           <option value="" disabled>👉 Move Day</option>
                           {days.map((d, dIdx) => (
@@ -570,6 +577,7 @@ export default function MultiDayItineraryPanel({
 
                       <button
                         type="button"
+                        aria-label={`Edit ${stop.name} details`}
                         onClick={() => {
                           if (isEditing) {
                             setEditingStopId(null);
@@ -579,16 +587,17 @@ export default function MultiDayItineraryPanel({
                           }
                         }}
                         title="Edit Stop"
-                        className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-cyan-300 text-xs"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-cyan-300 text-xs"
                       >
                         ✏️
                       </button>
 
                       <button
                         type="button"
+                        aria-label={`Delete ${stop.name} from itinerary`}
                         onClick={() => deleteStop(idx)}
                         title="Delete Stop"
-                        className="rounded-lg p-1 text-slate-500 hover:text-rose-400 text-xs"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-500 hover:text-rose-400 text-xs"
                       >
                         ✕
                       </button>
