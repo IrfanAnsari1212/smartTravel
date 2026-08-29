@@ -1,5 +1,6 @@
 const { z } = require("zod");
-const { getCoordinates, getPlacesNearby } = require("../services/locationService");
+const { getCoordinates } = require("../services/locationService");
+const { getPlacesNearby } = require("../services/placeService");
 const { getRoute } = require("../services/routeService");
 const {
   saveTrip,
