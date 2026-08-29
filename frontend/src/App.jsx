@@ -284,11 +284,22 @@ function SmartTravelDashboard() {
             <OfflineTripLibrary
               offlineTrips={offline.offlineTrips}
               offlineMapPacks={offline.offlineMapPacks}
+              syncingTripId={offline.syncingTripId}
+              isOnline={isOnline}
               onOpenTrip={handleOpenOfflineTrip}
               onExportTrip={offline.downloadCurrentTripPack}
+              onExportAllTrips={offline.handleExportAllTrips}
               onDeleteTrip={offline.deleteOfflineTrip}
               onRemoveMapPack={(id) =>
                 offline.handleRemoveOfflineMapArea(id, planner.setErrorMessage)
+              }
+              onSyncTripToCloud={(trip) =>
+                offline.syncTripToCloud(
+                  trip,
+                  auth.session,
+                  () => planner.loadTripHistory(),
+                  (msg) => planner.setErrorMessage(msg)
+                )
               }
             />
 

@@ -9,11 +9,14 @@ import {
 import {
   createOfflineTripPack,
   downloadOfflineTrip,
+  exportAllTripsArchive,
   listOfflineTrips,
   parseOfflineTripFile,
   removeOfflineTrip,
   saveOfflineTrip,
+  updateTripSyncStatus,
 } from "../services/offlineTripService";
+import { planTripRequest } from "../services/tripService";
 import {
   createEmptyMapVerification,
   EMERGENCY_SERVICE_CONFIG,
@@ -34,6 +37,7 @@ export function useOfflineStorage(route, start, destination, emergencyFallbackCo
   const [currentOfflineMapVerification, setCurrentOfflineMapVerification] = useState(
     createEmptyMapVerification
   );
+  const [syncingTripId, setSyncingTripId] = useState(null);
 
   const syncOfflineTrips = () => {
     const list = listOfflineTrips();
@@ -147,14 +151,29 @@ export function useOfflineStorage(route, start, destination, emergencyFallbackCo
     downloadOfflineTrip(currentOfflinePack);
   };
 
+  const handleExportAllTrips = () => {
+    exportAllTripsArchive();
+  };
+
   const handleImportFile = async (file, onImportSuccess, onError) => {
     if (!file) return;
 
     try {
-      const importedTrip = await parseOfflineTripFile(file);
-      saveOfflineTrip(importedTrip);
-      syncOfflineTrips();
-      if (onImportSuccess) onImportSuccess(importedTrip);
+      const result = await parseOfflineTripFile(file);
+
+      if (result.isBulk) {
+        result.trips.forEach((t) => saveOfflineTrip(t));
+        syncOfflineTrips();
+        if (onImportSuccess) {
+          onImportSuccess(result.trips[0], `Successfully imported ${result.count} trips from backup!`);
+        }
+      } else {
+        saveOfflineTrip(result.trip);
+        syncOfflineTrips();
+        if (onImportSuccess) {
+          onImportSuccess(result.trip, `Trip "${result.trip.title}" imported successfully!`);
+        }
+      }
     } catch (error) {
       console.error(error);
       if (onError) onError(error.message || "Unable to import this offline trip pack.");
@@ -164,6 +183,37 @@ export function useOfflineStorage(route, start, destination, emergencyFallbackCo
   const deleteOfflineTrip = (tripId) => {
     removeOfflineTrip(tripId);
     syncOfflineTrips();
+  };
+
+  const syncTripToCloud = async (trip, session, onSuccess, onError) => {
+    if (!isOnline) {
+      if (onError) onError("Go online to sync trip to your cloud account.");
+      return;
+    }
+
+    if (!session?.token) {
+      if (onError) onError("Please sign in to sync trips to the cloud.");
+      return;
+    }
+
+    setSyncingTripId(trip.id);
+
+    try {
+      const serverResult = await planTripRequest({
+        start: trip.startQuery,
+        destination: trip.destinationQuery,
+        filters: trip.filters || [],
+      });
+
+      updateTripSyncStatus(trip.id, "synced", serverResult.tripId);
+      syncOfflineTrips();
+      if (onSuccess) onSuccess("Trip synced to cloud account successfully!");
+    } catch (err) {
+      console.error("Sync error:", err);
+      if (onError) onError(err.response?.data?.message || err.message || "Failed to sync trip to cloud.");
+    } finally {
+      setSyncingTripId(null);
+    }
   };
 
   const handleDownloadOfflineMapArea = async (onError) => {
@@ -281,10 +331,13 @@ export function useOfflineStorage(route, start, destination, emergencyFallbackCo
     currentOfflineMapPreview,
     currentOfflineMapVerification,
     currentTripSavedOffline,
+    syncingTripId,
     saveCurrentTripToDevice,
     downloadCurrentTripPack,
+    handleExportAllTrips,
     handleImportFile,
     deleteOfflineTrip,
+    syncTripToCloud,
     handleDownloadOfflineMapArea,
     handleRemoveOfflineMapArea,
     offlineReadinessItems,
