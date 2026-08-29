@@ -244,9 +244,19 @@ function SmartTravelDashboard() {
                   <>
                     <LiveNavigationPanel
                       navigationState={navigation.navigationState}
+                      activeStepIndex={navigation.activeStepIndex}
+                      steps={navigation.steps}
+                      isSimulating={navigation.isSimulating}
+                      simulationSpeedMultiplier={navigation.simulationSpeedMultiplier}
+                      progressPercent={navigation.progressPercent}
+                      distanceToNextManeuver={navigation.distanceToNextManeuver}
+                      liveDistanceToDestination={navigation.liveDistanceToDestination}
+                      setSimulationSpeedMultiplier={navigation.setSimulationSpeedMultiplier}
                       startTrip={() => navigation.startTrip(planner.setErrorMessage)}
                       stopTrip={navigation.stopTrip}
-                      liveDistanceToDestination={navigation.liveDistanceToDestination}
+                      startSimulation={navigation.startSimulation}
+                      pauseSimulation={navigation.pauseSimulation}
+                      resetSimulation={navigation.resetSimulation}
                     />
 
                     <EmergencyPanel

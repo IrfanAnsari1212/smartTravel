@@ -122,6 +122,7 @@ const planTrip = async (req, res, next) => {
       distance: route.distance,
       duration: route.duration,
       geometry: route.geometry,
+      steps: route.steps || [],
       places,
       emergencyServices,
       placeLookup: {
@@ -137,6 +138,7 @@ const planTrip = async (req, res, next) => {
       distance: route.distance,
       duration: route.duration,
       geometry: route.geometry,
+      steps: savedTrip.steps || route.steps || [],
       places,
       emergencyServices: savedTrip.emergencyServices || EMPTY_EMERGENCY_SERVICES,
       filters: placeFilters,
