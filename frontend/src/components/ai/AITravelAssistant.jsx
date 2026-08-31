@@ -10,7 +10,7 @@ const QUICK_PROMPTS = [
   { label: "🚨 Safety & Fuel", prompt: "Give me an emergency, safety, and refueling check for this journey." },
 ];
 
-export default function AITravelAssistant({ route }) {
+export default function AITravelAssistant({ route, embedded = false, onClose }) {
   const { session } = useAuthContext();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
@@ -155,6 +155,99 @@ export default function AITravelAssistant({ route }) {
     });
   };
 
+  // ── Embedded panel mode (used inside right sidebar) ──────────────────────
+  if (embedded) {
+    return (
+      <div className="flex h-full flex-col bg-[#09090b]">
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700">
+              <span className="text-sm">✦</span>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-zinc-100">SmartTravel AI</h4>
+              <p className="text-[11px] text-zinc-500">
+                {route ? `Active route: ${route.destination?.name?.split(",")[0] || "…"}` : "Plan a trip to get started"}
+              </p>
+            </div>
+          </div>
+          {onClose && (
+            <button type="button" aria-label="Close AI panel" onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-zinc-800 hover:text-zinc-300">
+              ✕
+            </button>
+          )}
+        </div>
+        {/* Quick chips */}
+        <div className="scrollbar-none flex shrink-0 gap-1.5 overflow-x-auto border-b border-zinc-800/70 bg-zinc-900/40 p-2">
+          {QUICK_PROMPTS.map((item, idx) => (
+            <button key={idx} type="button" disabled={loading} onClick={() => handleSendMessage(item.prompt)}
+              className="whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-brand-400/50 hover:text-brand-300 disabled:opacity-50 min-h-[34px] flex items-center">
+              {item.label}
+            </button>
+          ))}
+        </div>
+        {/* Messages */}
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 text-xs">
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+              <div className={`max-w-[90%] rounded-2xl p-3.5 leading-relaxed shadow-sm ${
+                msg.role === "user"
+                  ? "bg-brand-600 text-white rounded-br-none"
+                  : "border border-zinc-800 bg-zinc-900/90 text-zinc-200 rounded-bl-none"
+              }`}>
+                {msg.role === "assistant" && (
+                  <span className="mb-1.5 block text-[10px] font-semibold text-brand-400">✦ SmartTravel AI</span>
+                )}
+                <div className="space-y-1">{formatMessageText(msg.text)}</div>
+                {msg.recommendedPlaces?.length > 0 && (
+                  <div className="mt-3 space-y-2 border-t border-zinc-700/60 pt-2.5">
+                    <p className="text-[11px] font-semibold text-brand-400">✦ Referenced Places:</p>
+                    {msg.recommendedPlaces.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-zinc-950/80 p-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-zinc-100">{p.name}</p>
+                          <p className="truncate text-[10px] text-zinc-500">{p.category?.toUpperCase()} · {p.address || "On route"}</p>
+                        </div>
+                        <span className="shrink-0 rounded-md border border-brand-800/40 bg-brand-950 px-2 py-0.5 text-[10px] font-semibold text-brand-400">✦ Verified</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <span className="mt-1 block text-right text-[10px] opacity-50">{msg.timestamp}</span>
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-400 w-fit">
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:300ms]" />
+              </span>
+              <span className="text-xs">AI is thinking…</span>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        {/* Input */}
+        <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
+          className="shrink-0 flex gap-2 border-t border-zinc-800 bg-zinc-900/60 p-3">
+          <input type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
+            placeholder={route ? "Ask about attractions, food, hotels…" : "Plan a trip first…"}
+            disabled={loading}
+            className="flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-brand-500 disabled:opacity-50 min-h-[40px]" />
+          <button type="submit" aria-label="Send" disabled={loading || !inputMessage.trim()}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white transition hover:bg-brand-500 disabled:opacity-40">
+            ➤
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // ── Floating bubble mode (original) ─────────────────────────────────────────
   return (
     <div className="fixed bottom-6 right-4 sm:right-6 z-50">
       {/* Floating Toggle Button */}

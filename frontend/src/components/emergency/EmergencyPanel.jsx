@@ -1,9 +1,5 @@
-import {
-  EMERGENCY_SERVICE_CONFIG,
-  buildMapsSearchUrl,
-  formatDistance,
-  normalizeExternalUrl,
-} from "../../utils/formatters";
+import { EMERGENCY_SERVICE_CONFIG, buildMapsSearchUrl, formatDistance, normalizeExternalUrl } from "../../utils/formatters";
+import { TriangleAlert, MapPin, Phone, Globe, Navigation, ChevronRight } from "lucide-react";
 
 export default function EmergencyPanel({
   emergencyReferenceLabel,
@@ -13,160 +9,112 @@ export default function EmergencyPanel({
   focusedSafetyPlace,
   setFocusedSafetyPlace,
 }) {
-  const focusSafetyPlace = (place) => {
-    setFocusedSafetyPlace(place);
-  };
-
-  const openSafetyPlace = (place) => {
-    window.open(buildMapsSearchUrl(place), "_blank", "noopener,noreferrer");
-  };
+  const openPlace = (place) => window.open(buildMapsSearchUrl(place), "_blank", "noopener,noreferrer");
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-200">Emergency fallback</p>
-          <p className="mt-2 text-sm text-slate-400">
-            Offline quick-access to the nearest saved fuel, hotel, hospital, and
-            mechanic from your {emergencyReferenceLabel}.
-          </p>
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TriangleAlert className="h-4 w-4 text-danger-400" />
+          <h3 className="text-sm font-semibold text-zinc-100">Emergency Fallback</h3>
         </div>
-        <span className="rounded-full bg-rose-400/10 px-3 py-1 text-xs text-rose-100">
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${
+          emergencyFallbackCount === EMERGENCY_SERVICE_CONFIG.length
+            ? "border-success-500/30 bg-success-500/10 text-success-400"
+            : emergencyFallbackCount > 0
+              ? "border-warn-500/30 bg-warn-500/10 text-warn-400"
+              : "border-danger-500/30 bg-danger-500/10 text-danger-400"
+        }`}>
           {emergencyFallbackCount}/{EMERGENCY_SERVICE_CONFIG.length} ready
         </span>
       </div>
 
+      <p className="text-xs text-zinc-600">
+        Offline quick-access to nearest saved services from your {emergencyReferenceLabel}.
+      </p>
+
+      {/* Nearest highlight */}
       {nearestEmergencyOption && (
-        <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/5 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-rose-100">
-                Nearest now: {nearestEmergencyOption.label}
-              </p>
-              <p className="mt-1 text-sm text-slate-300">
-                {nearestEmergencyOption.nearestPlace.name}
-              </p>
-              <p className="mt-1 text-sm text-slate-400">
-                {nearestEmergencyOption.nearestPlace.distanceFromReference !== null &&
-                nearestEmergencyOption.nearestPlace.distanceFromReference !== undefined
-                  ? `${formatDistance(
-                      nearestEmergencyOption.nearestPlace.distanceFromReference
-                    )} from your ${emergencyReferenceLabel}`
-                  : "Saved in this route pack"}
+        <div className="rounded-2xl border border-danger-500/20 bg-danger-500/5 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-danger-500/80 mb-1">Nearest Now</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-zinc-100">{nearestEmergencyOption.label}</p>
+              <p className="text-xs text-zinc-400 truncate">{nearestEmergencyOption.nearestPlace.name}</p>
+              <p className="mt-0.5 text-[10px] text-zinc-600">
+                {nearestEmergencyOption.nearestPlace.distanceFromReference != null
+                  ? `${formatDistance(nearestEmergencyOption.nearestPlace.distanceFromReference)} from ${emergencyReferenceLabel}`
+                  : "Saved in route pack"}
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => focusSafetyPlace(nearestEmergencyOption.nearestPlace)}
-                className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100"
-              >
-                Focus Nearest
+            <div className="flex gap-1.5 shrink-0">
+              <button type="button" onClick={() => setFocusedSafetyPlace(nearestEmergencyOption.nearestPlace)}
+                className="flex h-7 items-center gap-1 rounded-lg border border-zinc-700 px-2 text-xs text-zinc-400 transition hover:border-danger-500/40 hover:text-danger-400">
+                <Navigation className="h-3 w-3" />
               </button>
               {nearestEmergencyOption.nearestPlace.phone && (
-                <a
-                  href={`tel:${nearestEmergencyOption.nearestPlace.phone}`}
-                  className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100"
-                >
-                  Call Nearest
+                <a href={`tel:${nearestEmergencyOption.nearestPlace.phone}`}
+                  className="flex h-7 items-center gap-1 rounded-lg border border-zinc-700 px-2 text-xs text-zinc-400 transition hover:border-success-500/40 hover:text-success-400">
+                  <Phone className="h-3 w-3" />
                 </a>
               )}
-              <button
-                type="button"
-                onClick={() => openSafetyPlace(nearestEmergencyOption.nearestPlace)}
-                className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300 hover:text-rose-100"
-              >
-                Open Nearest
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      {/* Service grid */}
+      <div className="grid grid-cols-2 gap-2">
         {emergencyFallbacks.map((service) => {
           const place = service.nearestPlace;
+          const isFocused = focusedSafetyPlace?.id === place?.id;
 
           return (
-            <div
-              key={service.id}
-              className={`rounded-2xl border bg-slate-900 p-4 ${
-                place && focusedSafetyPlace?.id === place.id
-                  ? "border-rose-300/60"
-                  : "border-slate-800"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-white">{service.label}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.25em] text-slate-500">
-                    {service.count} saved
-                  </p>
-                </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs ${
-                    place
-                      ? "bg-emerald-400/15 text-emerald-100"
-                      : "bg-slate-800 text-slate-300"
-                  }`}
-                >
-                  {place ? "Available" : "Missing"}
+            <div key={service.id}
+              className={`rounded-2xl border p-3 transition ${
+                isFocused
+                  ? "border-danger-500/40 bg-danger-500/5"
+                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+              }`}>
+              <div className="flex items-start justify-between gap-1 mb-2">
+                <p className="text-xs font-medium text-zinc-200">{service.label}</p>
+                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                  place
+                    ? "bg-success-500/15 text-success-400"
+                    : "bg-zinc-800 text-zinc-600"
+                }`}>
+                  {place ? "✓" : "—"}
                 </span>
               </div>
 
               {place ? (
                 <>
-                  <p className="mt-4 font-medium text-slate-100">{place.name}</p>
-                  <p className="mt-2 text-sm text-slate-400">
-                    {place.address || "Address details unavailable"}
+                  <p className="text-[10px] text-zinc-400 truncate leading-snug">{place.name}</p>
+                  <p className="text-[10px] text-zinc-600 mt-0.5">
+                    {place.distanceFromReference != null
+                      ? formatDistance(place.distanceFromReference)
+                      : "Saved"}
                   </p>
-                  <p className="mt-2 text-sm text-cyan-100">
-                    {place.distanceFromReference !== null &&
-                    place.distanceFromReference !== undefined
-                      ? `${formatDistance(place.distanceFromReference)} away`
-                      : "Saved to this route pack"}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => focusSafetyPlace(place)}
-                      className="text-cyan-200 transition hover:text-cyan-100"
-                    >
+                  <div className="mt-2 flex items-center gap-1">
+                    <button type="button" onClick={() => setFocusedSafetyPlace(place)}
+                      className="flex h-6 items-center rounded-lg border border-zinc-700 px-2 text-[10px] text-zinc-500 transition hover:border-brand-500/40 hover:text-brand-400">
                       Focus
                     </button>
                     {place.phone && (
-                      <a
-                        href={`tel:${place.phone}`}
-                        className="text-cyan-200 transition hover:text-cyan-100"
-                      >
+                      <a href={`tel:${place.phone}`}
+                        className="flex h-6 items-center rounded-lg border border-zinc-700 px-2 text-[10px] text-zinc-500 transition hover:border-success-500/40 hover:text-success-400">
                         Call
                       </a>
                     )}
-                    {place.website && (
-                      <a
-                        href={normalizeExternalUrl(place.website)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-cyan-200 transition hover:text-cyan-100"
-                      >
-                        Website
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => openSafetyPlace(place)}
-                      className="text-cyan-200 transition hover:text-cyan-100"
-                    >
-                      Open
+                    <button type="button" onClick={() => openPlace(place)}
+                      className="ml-auto flex h-6 w-6 items-center justify-center rounded-lg border border-zinc-700 text-zinc-600 hover:text-zinc-400">
+                      <ChevronRight className="h-3 w-3" />
                     </button>
                   </div>
                 </>
               ) : (
-                <p className="mt-4 text-sm text-slate-400">
-                  {service.emptyLabel}. Plan the route online again to refresh the
-                  safety pack.
-                </p>
+                <p className="text-[10px] text-zinc-700 leading-snug mt-1">{service.emptyLabel}</p>
               )}
             </div>
           );
@@ -175,4 +123,3 @@ export default function EmergencyPanel({
     </div>
   );
 }
-

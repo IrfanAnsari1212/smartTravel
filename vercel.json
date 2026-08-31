@@ -1,16 +1,15 @@
 {
-  "env": {
-    "VITE_API_BASE_URL": "/_/backend/api"
-  },
-  "experimentalServices": {
-    "frontend": {
-      "entrypoint": "frontend",
-      "routePrefix": "/",
-      "framework": "vite"
+  "version": 2,
+  "buildCommand": "npm run build --prefix frontend",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api"
     },
-    "backend": {
-      "entrypoint": "backend",
-      "routePrefix": "/_/backend"
+    {
+      "source": "/_/backend/api/:path*",
+      "destination": "/api"
     }
-  }
+  ]
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Search, MapPin, Flag, Plus, ArrowUp, ArrowDown, X, Loader, Zap, Navigation } from "lucide-react";
 import { PLACE_FILTERS } from "../../utils/formatters";
 
 export default function RoutePlannerForm({
@@ -53,26 +54,17 @@ export default function RoutePlannerForm({
       : startFocused && !start.trim()
         ? recentSearches.map((s) => ({ displayName: s, placeId: s }))
         : [];
-
     if (!list.length) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setStartHighlightIndex((prev) => (prev < list.length - 1 ? prev + 1 : 0));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setStartHighlightIndex((prev) => (prev > 0 ? prev - 1 : list.length - 1));
-    } else if (e.key === "Enter" && startHighlightIndex >= 0 && list[startHighlightIndex]) {
+    if (e.key === "ArrowDown") { e.preventDefault(); setStartHighlightIndex((p) => (p < list.length - 1 ? p + 1 : 0)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setStartHighlightIndex((p) => (p > 0 ? p - 1 : list.length - 1)); }
+    else if (e.key === "Enter" && startHighlightIndex >= 0 && list[startHighlightIndex]) {
       e.preventDefault();
       const selected = list[startHighlightIndex];
       setStart(selected.displayName);
       if (addRecentSearch) addRecentSearch(selected.displayName);
       clearSearchState("start", setStartSuggestions);
       setStartHighlightIndex(-1);
-    } else if (e.key === "Escape") {
-      clearSearchState("start", setStartSuggestions);
-      setStartHighlightIndex(-1);
-    }
+    } else if (e.key === "Escape") { clearSearchState("start", setStartSuggestions); setStartHighlightIndex(-1); }
   };
 
   const handleDestKeyDown = (e) => {
@@ -81,223 +73,158 @@ export default function RoutePlannerForm({
       : destFocused && !destination.trim()
         ? recentSearches.map((s) => ({ displayName: s, placeId: s }))
         : [];
-
     if (!list.length) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setDestHighlightIndex((prev) => (prev < list.length - 1 ? prev + 1 : 0));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setDestHighlightIndex((prev) => (prev > 0 ? prev - 1 : list.length - 1));
-    } else if (e.key === "Enter" && destHighlightIndex >= 0 && list[destHighlightIndex]) {
+    if (e.key === "ArrowDown") { e.preventDefault(); setDestHighlightIndex((p) => (p < list.length - 1 ? p + 1 : 0)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setDestHighlightIndex((p) => (p > 0 ? p - 1 : list.length - 1)); }
+    else if (e.key === "Enter" && destHighlightIndex >= 0 && list[destHighlightIndex]) {
       e.preventDefault();
       const selected = list[destHighlightIndex];
       setDestination(selected.displayName);
       if (addRecentSearch) addRecentSearch(selected.displayName);
       clearSearchState("destination", setDestSuggestions);
       setDestHighlightIndex(-1);
-    } else if (e.key === "Escape") {
-      clearSearchState("destination", setDestSuggestions);
-      setDestHighlightIndex(-1);
-    }
+    } else if (e.key === "Escape") { clearSearchState("destination", setDestSuggestions); setDestHighlightIndex(-1); }
   };
 
   const handleWaypointSearch = (index, value) => {
     updateWaypoint(index, value);
-    handleSearch(
-      value,
-      (list) => {
-        setWaypointSuggestionsMap((prev) => ({ ...prev, [index]: list }));
-      },
-      `waypoint-${index}`
-    );
+    handleSearch(value, (list) => setWaypointSuggestionsMap((p) => ({ ...p, [index]: list })), `waypoint-${index}`);
   };
 
-  return (
-    <section className="space-y-4 rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-md">
-      <div className="space-y-3">
-        {/* Start Location Input */}
-        <div className="relative">
-          <div className="mb-2 flex items-center justify-between">
-            <label htmlFor="start-location-input" className="block text-sm font-medium text-slate-300">
-              🟢 From (Start Location)
-            </label>
-            {locationStatus !== "idle" && (
-              <span
-                className={`text-xs ${
-                  locationStatus === "found"
-                    ? "text-emerald-400"
-                    : locationStatus === "locating"
-                      ? "text-cyan-400"
-                      : "text-amber-400"
-                }`}
-              >
-                {locationStatus === "locating"
-                  ? "Locating..."
-                  : locationStatus === "found"
-                    ? "GPS Located"
-                    : "GPS permission denied"}
-              </span>
-            )}
-          </div>
+  // Combined list for start dropdown
+  const startList = startSuggestions.length
+    ? startSuggestions
+    : startFocused && !start.trim() && recentSearches.length
+      ? recentSearches.map((s) => ({ displayName: s, placeId: s, isRecent: true }))
+      : [];
 
-          <div className="relative flex items-center">
+  const destList = destSuggestions.length
+    ? destSuggestions
+    : destFocused && !destination.trim() && recentSearches.length
+      ? recentSearches.map((s) => ({ displayName: s, placeId: s, isRecent: true }))
+      : [];
+
+  return (
+    <div className="space-y-4">
+      {/* Route Inputs */}
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+        {/* From */}
+        <div className="relative">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success-500/20">
+              <div className="h-2.5 w-2.5 rounded-full bg-success-400" />
+            </div>
             <input
               id="start-location-input"
               role="combobox"
               aria-autocomplete="list"
-              aria-expanded={startSuggestions.length > 0 || (startFocused && !start.trim() && recentSearches.length > 0)}
+              aria-expanded={startList.length > 0}
               aria-controls="start-suggestions-list"
-              placeholder="Enter starting city or use GPS"
+              placeholder="From — starting location"
               value={start}
               onFocus={() => setStartFocused(true)}
               onBlur={() => setTimeout(() => setStartFocused(false), 200)}
-              onChange={(event) => {
-                const value = event.target.value;
-                setStart(value);
-                setStartHighlightIndex(-1);
-                handleSearch(value, setStartSuggestions, "start");
-              }}
+              onChange={(e) => { setStart(e.target.value); setStartHighlightIndex(-1); handleSearch(e.target.value, setStartSuggestions, "start"); }}
               onKeyDown={handleStartKeyDown}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-4 pr-20 text-slate-100 outline-none transition focus:border-cyan-400"
+              className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 outline-none"
             />
-
-            <div className="absolute right-2 flex items-center gap-1">
+            <div className="flex items-center gap-1">
               {start && (
-                <button
-                  type="button"
-                  aria-label="Clear start location"
-                  title="Clear"
-                  onClick={() => {
-                    setStart("");
-                    clearSearchState("start", setStartSuggestions);
-                  }}
-                  className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                >
-                  ✕
+                <button type="button" aria-label="Clear start" onClick={() => { setStart(""); clearSearchState("start", setStartSuggestions); }} className="rounded-lg p-1 text-zinc-600 hover:text-zinc-400">
+                  <X className="h-3.5 w-3.5" />
                 </button>
               )}
-
               <button
                 type="button"
-                aria-label="Use current GPS location"
-                title="Use my current location"
+                aria-label="Use GPS location"
                 onClick={() => detectCurrentLocation(false)}
                 disabled={locationStatus === "locating"}
-                className={`rounded-xl p-2 transition ${
-                  locationStatus === "locating"
-                    ? "bg-cyan-500/20 text-cyan-300"
-                    : locationStatus === "found"
-                      ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-cyan-200"
-                }`}
+                className={`rounded-lg p-1.5 transition ${locationStatus === "locating" ? "text-brand-400" : locationStatus === "found" ? "text-success-400" : "text-zinc-600 hover:text-zinc-300"}`}
               >
-                📍
+                {locationStatus === "locating"
+                  ? <Loader className="h-4 w-4 animate-spin" />
+                  : <Navigation className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
           {/* Start suggestions */}
-          {startSuggestions.length > 0 && (
-            <ul
-              id="start-suggestions-list"
-              role="listbox"
-              className="absolute z-30 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-xl"
-            >
-              {startSuggestions.map((item, index) => (
+          {startList.length > 0 && (
+            <ul id="start-suggestions-list" role="listbox" className="border-t border-zinc-800 bg-zinc-900 max-h-52 overflow-y-auto">
+              {startList.map((item, idx) => (
                 <li
                   key={item.placeId}
                   role="option"
-                  aria-selected={startHighlightIndex === index}
-                  className={`cursor-pointer border-b border-slate-800 px-4 py-3 text-sm transition ${
-                    startHighlightIndex === index
-                      ? "bg-cyan-950/80 text-cyan-200"
-                      : "text-slate-200 hover:bg-slate-800"
-                  }`}
-                  onMouseDown={() => {
-                    setStart(item.displayName);
-                    if (addRecentSearch) addRecentSearch(item.displayName);
-                    clearSearchState("start", setStartSuggestions);
-                  }}
+                  aria-selected={startHighlightIndex === idx}
+                  onMouseDown={() => { setStart(item.displayName); if (addRecentSearch) addRecentSearch(item.displayName); clearSearchState("start", setStartSuggestions); }}
+                  className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm transition ${startHighlightIndex === idx ? "bg-brand-950/60 text-brand-300" : "text-zinc-300 hover:bg-zinc-800"}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500">📍</span>
-                    <span className="truncate">{item.displayName}</span>
-                  </div>
+                  <MapPin className={`h-3.5 w-3.5 shrink-0 ${item.isRecent ? "text-zinc-600" : "text-brand-500"}`} />
+                  <span className="truncate">{item.displayName}</span>
+                  {item.isRecent && <span className="ml-auto text-[10px] text-zinc-700">Recent</span>}
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        {/* Dynamic Waypoint Stops */}
-        {waypoints.map((stop, index) => (
-          <div key={index} className="relative rounded-2xl border border-slate-800 bg-slate-950/60 p-3 space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-semibold text-cyan-300 flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-bold border border-cyan-500/30">
-                  {index + 1}
-                </span>
-                Stop {index + 1}
-              </span>
-              <div className="flex items-center gap-1">
-                {index > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => moveWaypointUp(index)}
-                    title="Move stop up"
-                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
-                  >
-                    ⬆️
-                  </button>
-                )}
-                {index < waypoints.length - 1 && (
-                  <button
-                    type="button"
-                    onClick={() => moveWaypointDown(index)}
-                    title="Move stop down"
-                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
-                  >
-                    ⬇️
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => removeWaypoint(index)}
-                  title="Remove stop"
-                  className="rounded-lg p-1 text-rose-400 hover:bg-rose-500/10"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+        {/* Divider with connector line */}
+        <div className="flex items-center gap-3 px-4 py-0.5 border-t border-zinc-800/60">
+          <div className="ml-3 flex w-1 justify-center">
+            <div className="h-5 w-px bg-zinc-700" />
+          </div>
+          {waypoints.length < 5 && (
+            <button
+              type="button"
+              aria-label="Add stop"
+              onClick={addWaypoint}
+              className="ml-auto flex items-center gap-1 rounded-full border border-zinc-700/60 px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition hover:border-brand-500/40 hover:text-brand-400"
+            >
+              <Plus className="h-3 w-3" />
+              Add stop
+            </button>
+          )}
+        </div>
 
-            <div className="relative">
+        {/* Waypoints */}
+        {waypoints.map((stop, index) => (
+          <div key={index} className="relative border-t border-zinc-800/60">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-zinc-400">
+                {index + 1}
+              </div>
               <input
                 type="text"
-                placeholder={`Enter stop ${index + 1} city or landmark`}
+                placeholder={`Stop ${index + 1}`}
                 value={stop}
                 onFocus={() => setWaypointFocusIndex(index)}
                 onBlur={() => setTimeout(() => setWaypointFocusIndex(null), 200)}
                 onChange={(e) => handleWaypointSearch(index, e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 pl-3 pr-10 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 outline-none"
               />
+              <div className="flex items-center gap-0.5">
+                {index > 0 && (
+                  <button type="button" onClick={() => moveWaypointUp(index)} aria-label="Move up" className="rounded-lg p-1 text-zinc-600 hover:text-zinc-400">
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {index < waypoints.length - 1 && (
+                  <button type="button" onClick={() => moveWaypointDown(index)} aria-label="Move down" className="rounded-lg p-1 text-zinc-600 hover:text-zinc-400">
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button type="button" onClick={() => removeWaypoint(index)} aria-label="Remove stop" className="rounded-lg p-1 text-zinc-600 hover:text-danger-400">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
-
-            {/* Waypoint suggestions dropdown */}
             {waypointFocusIndex === index && (waypointSuggestionsMap[index] || []).length > 0 && (
-              <ul className="absolute z-30 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+              <ul className="border-t border-zinc-800 bg-zinc-900 max-h-40 overflow-y-auto">
                 {(waypointSuggestionsMap[index] || []).map((item) => (
-                  <li
-                    key={item.placeId}
-                    className="cursor-pointer border-b border-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800"
-                    onMouseDown={() => {
-                      updateWaypoint(index, item.displayName);
-                      setWaypointSuggestionsMap((prev) => ({ ...prev, [index]: [] }));
-                    }}
-                  >
-                    📍 {item.displayName}
+                  <li key={item.placeId} onMouseDown={() => { updateWaypoint(index, item.displayName); setWaypointSuggestionsMap((p) => ({ ...p, [index]: [] })); }}
+                    className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-brand-500" />
+                    <span className="truncate">{item.displayName}</span>
                   </li>
                 ))}
               </ul>
@@ -305,231 +232,162 @@ export default function RoutePlannerForm({
           </div>
         ))}
 
-        {/* Add Stop & Optimize Stop Order Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          {waypoints.length < 5 && (
-            <button
-              type="button"
-              aria-label="Add intermediate stop"
-              onClick={addWaypoint}
-              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 min-h-[44px]"
-            >
-              <span>➕</span>
-              <span>Add Stop</span>
-            </button>
-          )}
-
-          {waypoints.length > 1 && (
-            <button
-              type="button"
-              aria-label="Toggle shortest stop sequence optimization"
-              onClick={() => setOptimize(!optimize)}
-              className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition min-h-[44px] ${
-                optimize
-                  ? "border-emerald-400 bg-emerald-400/20 text-emerald-300"
-                  : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
-              }`}
-            >
-              <span>⚡</span>
-              <span>{optimize ? "Stop Order: Optimized (Shortest)" : "Optimize Stop Order"}</span>
-            </button>
-          )}
+        {/* Divider */}
+        <div className="flex items-center gap-3 px-4 py-0.5 border-t border-zinc-800/60">
+          <div className="ml-3 flex w-1 justify-center">
+            <div className="h-4 w-px bg-zinc-700" />
+          </div>
         </div>
 
-        {/* Destination Location Input */}
-        <div className="relative pt-1">
-          <div className="mb-2 flex items-center justify-between">
-            <label htmlFor="destination-location-input" className="block text-sm font-medium text-slate-300">
-              🏁 To (Destination)
-            </label>
-          </div>
-
-          <div className="relative flex items-center">
+        {/* To */}
+        <div className="relative border-t border-zinc-800/60">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-danger-500/20">
+              <Flag className="h-3.5 w-3.5 text-danger-400" />
+            </div>
             <input
               id="destination-location-input"
               role="combobox"
               aria-autocomplete="list"
-              aria-expanded={destSuggestions.length > 0 || (destFocused && !destination.trim() && recentSearches.length > 0)}
+              aria-expanded={destList.length > 0}
               aria-controls="dest-suggestions-list"
-              placeholder="Enter your destination"
+              placeholder="To — destination"
               value={destination}
               onFocus={() => setDestFocused(true)}
               onBlur={() => setTimeout(() => setDestFocused(false), 200)}
-              onChange={(event) => {
-                const value = event.target.value;
-                setDestination(value);
-                setDestHighlightIndex(-1);
-                handleSearch(value, setDestSuggestions, "destination");
-              }}
+              onChange={(e) => { setDestination(e.target.value); setDestHighlightIndex(-1); handleSearch(e.target.value, setDestSuggestions, "destination"); }}
               onKeyDown={handleDestKeyDown}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-4 pr-12 text-slate-100 outline-none transition focus:border-cyan-400 min-h-[48px]"
+              className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 outline-none"
             />
-
             {destination && (
-              <button
-                type="button"
-                aria-label="Clear destination"
-                title="Clear"
-                onClick={() => {
-                  setDestination("");
-                  clearSearchState("destination", setDestSuggestions);
-                }}
-                className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              >
-                ✕
+              <button type="button" aria-label="Clear destination" onClick={() => { setDestination(""); clearSearchState("destination", setDestSuggestions); }} className="rounded-lg p-1 text-zinc-600 hover:text-zinc-400">
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          {/* Destination suggestions dropdown */}
-          {destSuggestions.length > 0 && (
-            <ul
-              id="dest-suggestions-list"
-              role="listbox"
-              className="absolute z-30 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-xl"
-            >
-              {destSuggestions.map((item, index) => (
+          {/* Destination suggestions */}
+          {destList.length > 0 && (
+            <ul id="dest-suggestions-list" role="listbox" className="border-t border-zinc-800 bg-zinc-900 max-h-52 overflow-y-auto">
+              {destList.map((item, idx) => (
                 <li
                   key={item.placeId}
                   role="option"
-                  aria-selected={destHighlightIndex === index}
-                  className={`cursor-pointer border-b border-slate-800 px-4 py-3 text-sm transition ${
-                    destHighlightIndex === index
-                      ? "bg-cyan-950/80 text-cyan-200"
-                      : "text-slate-200 hover:bg-slate-800"
-                  }`}
-                  onMouseDown={() => {
-                    setDestination(item.displayName);
-                    if (addRecentSearch) addRecentSearch(item.displayName);
-                    clearSearchState("destination", setDestSuggestions);
-                  }}
+                  aria-selected={destHighlightIndex === idx}
+                  onMouseDown={() => { setDestination(item.displayName); if (addRecentSearch) addRecentSearch(item.displayName); clearSearchState("destination", setDestSuggestions); }}
+                  className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm transition ${destHighlightIndex === idx ? "bg-brand-950/60 text-brand-300" : "text-zinc-300 hover:bg-zinc-800"}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500">📍</span>
-                    <span className="truncate">{item.displayName}</span>
-                  </div>
+                  <MapPin className={`h-3.5 w-3.5 shrink-0 ${item.isRecent ? "text-zinc-600" : "text-brand-500"}`} />
+                  <span className="truncate">{item.displayName}</span>
+                  {item.isRecent && <span className="ml-auto text-[10px] text-zinc-700">Recent</span>}
                 </li>
               ))}
             </ul>
           )}
         </div>
-
-        {/* Routing Avoidance Preferences & Plan Button */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              aria-label="Toggle toll road avoidance"
-              onClick={() => setAvoidTolls(!avoidTolls)}
-              className={`rounded-full border px-4 py-2 text-xs font-medium transition min-h-[42px] flex items-center justify-center ${
-                avoidTolls
-                  ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
-                  : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
-              }`}
-            >
-              🚫 Avoid Tolls
-            </button>
-
-            <button
-              type="button"
-              aria-label="Toggle highway avoidance"
-              onClick={() => setAvoidHighways(!avoidHighways)}
-              className={`rounded-full border px-4 py-2 text-xs font-medium transition min-h-[42px] flex items-center justify-center ${
-                avoidHighways
-                  ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
-                  : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
-              }`}
-            >
-              🛣️ Avoid Highways
-            </button>
-          </div>
-
-          <button
-            type="button"
-            aria-label="Plan and calculate trip route"
-            onClick={planTrip}
-            disabled={loading || !isOnline}
-            className="w-full sm:w-auto rounded-2xl bg-cyan-400 px-7 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-cyan-800 disabled:text-slate-400 shadow-lg shadow-cyan-500/20 min-h-[48px] flex items-center justify-center"
-          >
-            {loading ? "Planning..." : isOnline ? "Plan Trip" : "Offline"}
-          </button>
-        </div>
       </div>
 
-      {locationMessage && locationStatus !== "idle" && (
-        <div
-          className={`rounded-2xl border px-4 py-2.5 text-xs ${
-            locationStatus === "found"
-              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-              : locationStatus === "locating"
-                ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200"
-                : "border-amber-400/30 bg-amber-400/10 text-amber-200"
-          }`}
+      {/* Route options + Plan button */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          aria-label="Toggle toll avoidance"
+          onClick={() => setAvoidTolls(!avoidTolls)}
+          className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${avoidTolls ? "border-warn-500/40 bg-warn-500/10 text-warn-400" : "border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}
         >
+          🚫 No Tolls
+        </button>
+        <button
+          type="button"
+          aria-label="Toggle highway avoidance"
+          onClick={() => setAvoidHighways(!avoidHighways)}
+          className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${avoidHighways ? "border-warn-500/40 bg-warn-500/10 text-warn-400" : "border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}
+        >
+          🛣️ No Highways
+        </button>
+        {waypoints.length > 1 && (
+          <button
+            type="button"
+            aria-label="Optimize stop order"
+            onClick={() => setOptimize(!optimize)}
+            className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${optimize ? "border-success-500/40 bg-success-500/10 text-success-400" : "border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}
+          >
+            <Zap className="h-3.5 w-3.5" />
+            {optimize ? "Optimized" : "Optimize"}
+          </button>
+        )}
+
+        <button
+          type="button"
+          aria-label="Plan trip route"
+          onClick={planTrip}
+          disabled={loading || !isOnline}
+          className="ml-auto flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white shadow-lg shadow-brand-900/30 transition hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? <Loader className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+          {loading ? "Planning…" : isOnline ? "Plan Trip" : "Offline"}
+        </button>
+      </div>
+
+      {/* Location status message */}
+      {locationMessage && locationStatus !== "idle" && (
+        <div className={`rounded-xl border px-3 py-2 text-xs ${
+          locationStatus === "found" ? "border-success-500/30 bg-success-500/10 text-success-400"
+            : locationStatus === "locating" ? "border-brand-500/30 bg-brand-500/10 text-brand-400"
+            : "border-warn-500/30 bg-warn-500/10 text-warn-400"
+        }`}>
           {locationMessage}
         </div>
       )}
 
-      {/* Categories Filters */}
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/80">
-        {PLACE_FILTERS.map((filter) => {
-          const active = selectedFilters.includes(filter.id);
-
-          return (
-            <button
-              key={filter.id}
-              type="button"
-              aria-label={`Filter by ${filter.label}`}
-              onClick={() => toggleFilter(filter.id)}
-              className={`rounded-full border px-4 py-2 text-xs font-medium transition min-h-[42px] flex items-center justify-center ${
-                active
-                  ? "border-cyan-300 bg-cyan-400/15 text-cyan-100"
-                  : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
-              }`}
-            >
-              {filter.label}
-            </button>
-          );
-        })}
+      {/* Category Filters */}
+      <div>
+        <p className="mb-2 text-[11px] font-medium tracking-wide text-zinc-600 uppercase">Discover along route</p>
+        <div className="flex flex-wrap gap-1.5">
+          {PLACE_FILTERS.map((filter) => {
+            const active = selectedFilters.includes(filter.id);
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                aria-label={`Filter: ${filter.label}`}
+                onClick={() => toggleFilter(filter.id)}
+                className={`flex h-7 items-center rounded-lg border px-3 text-xs font-medium transition ${
+                  active
+                    ? "border-brand-500/40 bg-brand-950/40 text-brand-300"
+                    : "border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400"
+                }`}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Offline Action Bar */}
-      <div className="flex flex-wrap gap-2.5 pt-2">
-        <button
-          type="button"
-          aria-label="Import offline trip JSON pack"
-          onClick={onImportClick}
-          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100 min-h-[44px] flex items-center justify-center"
-        >
-          Import Offline Pack
+      {/* Offline actions */}
+      <div className="flex flex-wrap gap-2 border-t border-zinc-800/60 pt-3">
+        <button type="button" onClick={onImportClick} className="flex h-8 items-center rounded-lg border border-zinc-800 px-3 text-xs text-zinc-500 transition hover:border-zinc-700 hover:text-zinc-300">
+          Import Pack
         </button>
         {currentOfflinePack && (
           <>
-            <button
-              type="button"
-              aria-label="Save current planned trip to local device storage"
-              onClick={onSaveOffline}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100 min-h-[44px] flex items-center justify-center"
-            >
-              Save Current Trip Offline
+            <button type="button" onClick={onSaveOffline} className="flex h-8 items-center rounded-lg border border-zinc-800 px-3 text-xs text-zinc-500 transition hover:border-zinc-700 hover:text-zinc-300">
+              Save Offline
             </button>
-            <button
-              type="button"
-              aria-label="Download offline trip pack as JSON file"
-              onClick={onDownloadPack}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100 min-h-[44px] flex items-center justify-center"
-            >
-              Download Trip Pack
+            <button type="button" onClick={onDownloadPack} className="flex h-8 items-center rounded-lg border border-zinc-800 px-3 text-xs text-zinc-500 transition hover:border-zinc-700 hover:text-zinc-300">
+              Download Pack
             </button>
           </>
         )}
       </div>
 
+      {/* Error */}
       {errorMessage && (
-        <p role="alert" aria-live="assertive" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-          ⚠️ {errorMessage}
-        </p>
+        <div role="alert" aria-live="assertive" className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-xs text-danger-400">
+          ⚠ {errorMessage}
+        </div>
       )}
-    </section>
+    </div>
   );
 }

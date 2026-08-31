@@ -26,6 +26,10 @@ const reverseGeocodeLocation = async (req, res, next) => {
     const result = await reverseGeocode(lat, lon);
     res.json(result);
   } catch (error) {
+    // Upstream network failure (Nominatim unreachable / DNS error)
+    if (error.code === "ENOTFOUND" || error.code === "ECONNABORTED" || error.code === "ETIMEDOUT" || error.code === "ECONNRESET") {
+      return res.status(503).json({ message: "Location service is temporarily unavailable. Please try again later." });
+    }
     next(error);
   }
 };
