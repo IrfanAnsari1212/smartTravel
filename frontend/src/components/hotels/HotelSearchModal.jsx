@@ -1,357 +1,239 @@
 import { useState, useEffect, useCallback, useId } from "react";
 import { searchHotelsRequest } from "../../services/hotelService";
 import { formatDistance } from "../../utils/formatters";
+import { X, Search, MapPin, Phone, Star, Loader, Hotel } from "lucide-react";
 
-export default function HotelSearchModal({
-  isOpen,
-  onClose,
-  currentLocation,
-  route,
-}) {
-  const [targetType, setTargetType] = useState("destination"); // 'destination' | 'current' | 'custom'
+export default function HotelSearchModal({ isOpen, onClose, currentLocation, route }) {
+  const [targetType, setTargetType] = useState("destination");
   const [customQuery, setCustomQuery] = useState("");
-  const [radius, setRadius] = useState(10000); // 10 km default
-  const [checkIn, setCheckIn] = useState(() => {
-    const today = new Date();
-    today.setDate(today.getDate() + 1);
-    return today.toISOString().split("T")[0];
-  });
-  const [checkOut, setCheckOut] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toISOString().split("T")[0];
-  });
+  const [radius, setRadius] = useState(10000);
+  const [checkIn, setCheckIn] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; });
+  const [checkOut, setCheckOut] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().split("T")[0]; });
   const [guests, setGuests] = useState(2);
   const [rooms, setRooms] = useState(1);
-  const checkInInputId = useId();
-  const checkOutInputId = useId();
-  const guestsInputId = useId();
-  const roomsInputId = useId();
-
   const [loading, setLoading] = useState(false);
   const [hotelsData, setHotelsData] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const checkInId = useId();
+  const checkOutId = useId();
+  const guestsId = useId();
+  const roomsId = useId();
+
   const handleSearch = useCallback(async () => {
     setLoading(true);
     setErrorMessage("");
-
     try {
-      let payload = {
-        radius,
-        checkIn,
-        checkOut,
-        guests,
-        rooms,
-      };
-
+      let payload = { radius, checkIn, checkOut, guests, rooms };
       if (targetType === "destination") {
-        if (route?.destination?.lat && route?.destination?.lon) {
-          payload.lat = route.destination.lat;
-          payload.lon = route.destination.lon;
-        } else if (route?.destination?.name) {
-          payload.query = route.destination.name;
-        } else {
-          payload.query = "Delhi";
-        }
+        if (route?.destination?.lat) { payload.lat = route.destination.lat; payload.lon = route.destination.lon; }
+        else { payload.query = route?.destination?.name || "Delhi"; }
       } else if (targetType === "current") {
-        if (currentLocation?.lat && currentLocation?.lon) {
-          payload.lat = currentLocation.lat;
-          payload.lon = currentLocation.lon;
-        } else if (route?.start?.lat) {
-          payload.lat = route.start.lat;
-          payload.lon = route.start.lon;
-        } else {
-          payload.query = "Delhi";
-        }
+        if (currentLocation?.lat) { payload.lat = currentLocation.lat; payload.lon = currentLocation.lon; }
+        else if (route?.start?.lat) { payload.lat = route.start.lat; payload.lon = route.start.lon; }
+        else { payload.query = "Delhi"; }
       } else {
-        if (!customQuery.trim()) {
-          setErrorMessage("Please enter a city or destination name to search.");
-          setLoading(false);
-          return;
-        }
+        if (!customQuery.trim()) { setErrorMessage("Please enter a city name."); setLoading(false); return; }
         payload.query = customQuery.trim();
       }
-
       const res = await searchHotelsRequest(payload);
       setHotelsData(res);
     } catch (err) {
-      console.error("Hotel search failed:", err);
-      setErrorMessage(
-        err.response?.data?.message || "Failed to search hotels. Please try again."
-      );
-    } finally {
-      setLoading(false);
-    }
+      setErrorMessage(err.response?.data?.message || "Hotel search failed. Please try again.");
+    } finally { setLoading(false); }
   }, [targetType, route, currentLocation, customQuery, radius, checkIn, checkOut, guests, rooms]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const onKey = (e) => { if (e.key === "Escape" && isOpen) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="hotel-search-title"
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/85 p-2 sm:p-4 backdrop-blur-md"
-    >
-      <div className="relative flex max-h-[92vh] max-sm:h-full max-sm:max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl max-sm:rounded-2xl border border-indigo-500/40 bg-slate-950 shadow-2xl shadow-indigo-950/50 text-slate-100">
+    <div role="dialog" aria-modal="true" aria-labelledby="hotel-title"
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 backdrop-blur-sm">
+      <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl max-h-[90vh]">
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-indigo-500/30 bg-indigo-500/10 px-4 sm:px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/20 text-2xl border border-indigo-500/30">
-              🏨
-            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-800/40 bg-brand-950/50">
+              <Hotel className="h-4 w-4 text-brand-400" />
+            </div>
             <div>
-              <h2 id="hotel-search-title" className="text-base sm:text-lg font-bold text-white">Hotel & Room Search</h2>
-              <p className="text-[11px] sm:text-xs text-indigo-300">
-                Live verified accommodation directory & direct provider availability
-              </p>
+              <h2 id="hotel-title" className="text-sm font-semibold text-zinc-100">Hotel Search</h2>
+              <p className="text-xs text-zinc-600">Real-time accommodation directory</p>
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="Close hotel search"
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-white"
-          >
-            ✕
+          <button type="button" aria-label="Close" onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-zinc-800 hover:text-zinc-300">
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Search Controls Card */}
-        <div className="border-b border-slate-800 bg-slate-900/80 p-5 space-y-4">
-          {/* Target Location Toggle */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium">Search near:</span>
-            <button
-              type="button"
-              onClick={() => setTargetType("destination")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                targetType === "destination"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-              }`}
-            >
-              🏁 Destination ({route?.destination?.name?.split(",")[0] || "Route End"})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTargetType("current")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                targetType === "current"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-              }`}
-            >
-              📍 My Location / Start
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTargetType("custom")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                targetType === "custom"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-              }`}
-            >
-              🔍 Custom City
-            </button>
+        {/* Search controls */}
+        <div className="shrink-0 border-b border-zinc-800 bg-zinc-900/60 p-5 space-y-4">
+          {/* Location type */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "destination", label: `Near ${route?.destination?.name?.split(",")[0] || "Destination"}` },
+              { id: "current", label: "Near My Location" },
+              { id: "custom", label: "Custom City" },
+            ].map((t) => (
+              <button key={t.id} type="button" onClick={() => setTargetType(t.id)}
+                className={`flex h-8 items-center rounded-xl border px-3 text-xs font-medium transition ${
+                  targetType === t.id
+                    ? "border-brand-500/50 bg-brand-950/50 text-brand-300"
+                    : "border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+                }`}>
+                {t.label}
+              </button>
+            ))}
           </div>
 
           {targetType === "custom" && (
-            <div>
-              <input
-                type="text"
-                placeholder="Enter city or area name (e.g. Manali, Goa, Jaipur)"
-                value={customQuery}
-                onChange={(e) => setCustomQuery(e.target.value)}
-                className="w-full rounded-2xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white outline-none focus:border-indigo-400"
-              />
-            </div>
+            <input type="text" placeholder="City, area or place…" value={customQuery}
+              onChange={(e) => setCustomQuery(e.target.value)}
+              className="h-9 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-brand-500" />
           )}
 
-          {/* Dates & Guests Filters Grid */}
+          {/* Dates, guests, rooms */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { id: checkInId, label: "Check-in",  type: "date", value: checkIn,  onChange: setCheckIn },
+              { id: checkOutId, label: "Check-out", type: "date", value: checkOut, onChange: setCheckOut },
+            ].map((f) => (
+              <div key={f.id}>
+                <label htmlFor={f.id} className="block text-[10px] text-zinc-600 mb-1">{f.label}</label>
+                <input id={f.id} type={f.type} value={f.value} onChange={(e) => f.onChange(e.target.value)}
+                  className="h-8 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100 outline-none focus:border-brand-500" />
+              </div>
+            ))}
             <div>
-              <label htmlFor={checkInInputId} className="block text-[10px] text-slate-400">Check-in</label>
-              <input
-                id={checkInInputId}
-                type="date"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white"
-              />
-            </div>
-
-            <div>
-              <label htmlFor={checkOutInputId} className="block text-[10px] text-slate-400">Check-out</label>
-              <input
-                id={checkOutInputId}
-                type="date"
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white"
-              />
-            </div>
-
-            <div>
-              <label htmlFor={guestsInputId} className="block text-[10px] text-slate-400">Guests</label>
-              <select
-                id={guestsInputId}
-                value={guests}
-                onChange={(e) => setGuests(Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white"
-              >
-                {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
-                  <option key={n} value={n}>{n} {n === 1 ? "Guest" : "Guests"}</option>
-                ))}
+              <label htmlFor={guestsId} className="block text-[10px] text-zinc-600 mb-1">Guests</label>
+              <select id={guestsId} value={guests} onChange={(e) => setGuests(Number(e.target.value))}
+                className="h-8 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100 outline-none">
+                {[1,2,3,4,5,6,8,10].map((n) => <option key={n} value={n}>{n} {n===1?"Guest":"Guests"}</option>)}
               </select>
             </div>
-
             <div>
-              <label htmlFor={roomsInputId} className="block text-[10px] text-slate-400">Rooms</label>
-              <select
-                id={roomsInputId}
-                value={rooms}
-                onChange={(e) => setRooms(Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white"
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>{n} {n === 1 ? "Room" : "Rooms"}</option>
-                ))}
+              <label htmlFor={roomsId} className="block text-[10px] text-zinc-600 mb-1">Rooms</label>
+              <select id={roomsId} value={rooms} onChange={(e) => setRooms(Number(e.target.value))}
+                className="h-8 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100 outline-none">
+                {[1,2,3,4,5].map((n) => <option key={n} value={n}>{n} {n===1?"Room":"Rooms"}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span>Radius:</span>
+          {/* Radius + Search button */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-zinc-600">Radius:</span>
               {[5000, 10000, 20000, 35000].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRadius(r)}
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] border ${
+                <button key={r} type="button" onClick={() => setRadius(r)}
+                  className={`h-7 rounded-lg border px-2.5 text-[11px] font-medium transition ${
                     radius === r
-                      ? "border-indigo-400 bg-indigo-500/20 text-indigo-200 font-semibold"
-                      : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
-                  }`}
-                >
-                  {r / 1000} km
+                      ? "border-brand-500/40 bg-brand-950/50 text-brand-300"
+                      : "border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400"
+                  }`}>
+                  {r/1000}km
                 </button>
               ))}
             </div>
-
-            <button
-              type="button"
-              onClick={handleSearch}
-              disabled={loading}
-              className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 disabled:bg-indigo-900"
-            >
-              {loading ? "Searching Hotels..." : "🔍 Search Availability"}
+            <button type="button" onClick={handleSearch} disabled={loading}
+              className="flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 text-xs font-semibold text-white shadow-lg shadow-brand-900/30 transition hover:bg-brand-500 disabled:opacity-50">
+              {loading ? <Loader className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              {loading ? "Searching…" : "Search Hotels"}
             </button>
           </div>
         </div>
 
-        {/* Results List Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Results */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
           {errorMessage && (
-            <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-              ⚠️ {errorMessage}
-            </p>
+            <div role="alert" className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-xs text-danger-400">
+              ⚠ {errorMessage}
+            </div>
           )}
 
           {loading ? (
-            <div className="py-12 text-center text-xs text-slate-400">
-              <span className="inline-block text-3xl animate-bounce mb-2">🏨</span>
-              <p>Searching verified accommodation providers and inventory...</p>
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <Loader className="h-8 w-8 animate-spin text-brand-500" />
+              <p className="text-sm text-zinc-500">Searching accommodation providers…</p>
             </div>
-          ) : !hotelsData || hotelsData.hotels?.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-800 p-10 text-center text-xs text-slate-500">
-              No hotels found within {radius / 1000} km. Try expanding your search radius or selecting a different location.
+          ) : !hotelsData ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-center">
+              <Hotel className="h-10 w-10 text-zinc-800" />
+              <p className="text-sm text-zinc-600">Set your preferences above and search</p>
+            </div>
+          ) : hotelsData.hotels?.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-zinc-800 px-4 py-12 text-center">
+              <p className="text-sm text-zinc-600">No hotels found within {radius/1000}km.</p>
+              <p className="mt-1 text-xs text-zinc-700">Try expanding the radius or searching a different location.</p>
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs text-zinc-600">
                 <span>
-                  Found <strong className="text-white">{hotelsData.totalFound}</strong> accommodations near{" "}
-                  <strong className="text-indigo-300">{hotelsData.searchCenter?.name?.split(",")[0] || "Location"}</strong>
+                  <strong className="text-zinc-300">{hotelsData.totalFound}</strong> hotels near{" "}
+                  <strong className="text-brand-400">{hotelsData.searchCenter?.name?.split(",")[0] || "location"}</strong>
                 </span>
-                <span>
-                  {checkIn} → {checkOut} ({guests} Guests, {rooms} Room)
-                </span>
+                <span>{checkIn} → {checkOut} · {guests}g {rooms}r</span>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {hotelsData.hotels.map((hotel) => (
-                  <div
-                    key={hotel.id}
-                    className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:border-indigo-500/40 hover:bg-slate-900/90"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-sm text-white">{hotel.name}</h3>
+                  <div key={hotel.id} className="group rounded-2xl border border-zinc-800 bg-zinc-900 p-4 transition hover:border-zinc-700">
+                    {/* Top row */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-semibold text-zinc-100">{hotel.name}</h3>
                           {hotel.stars && (
-                            <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                              {"⭐".repeat(hotel.stars)}
+                            <span className="flex items-center gap-0.5 rounded-full border border-warn-500/30 bg-warn-500/10 px-2 py-0.5 text-[10px] font-medium text-warn-400">
+                              <Star className="h-2.5 w-2.5 fill-warn-400" /> {hotel.stars}
                             </span>
                           )}
-                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300 capitalize">
+                          <span className="rounded-full border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 capitalize">
                             {hotel.type}
                           </span>
                         </div>
                         {hotel.address && (
-                          <p className="mt-1 text-xs text-slate-400">{hotel.address}</p>
+                          <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{hotel.address}</span>
+                          </p>
                         )}
-                        {hotel.distanceMeters && (
-                          <p className="mt-0.5 text-[11px] font-semibold text-indigo-300">
-                            📍 {formatDistance(hotel.distanceMeters)} away
+                        {hotel.distanceMeters != null && (
+                          <p className="mt-0.5 text-[11px] font-medium text-brand-400">
+                            {formatDistance(hotel.distanceMeters)} away
                           </p>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {hotel.phone && (
-                          <a
-                            href={`tel:${hotel.phone.replace(/[^0-9+]/g, "")}`}
-                            className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30"
-                          >
-                            📞 Call
-                          </a>
-                        )}
-                        <a
-                          href={hotel.directBookingUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500"
-                        >
+                      {/* Actions */}
+                      <div className="flex shrink-0 flex-col gap-1.5">
+                        <a href={hotel.directBookingUrl} target="_blank" rel="noreferrer"
+                          className="flex h-8 items-center justify-center rounded-xl bg-brand-600 px-3 text-xs font-semibold text-white transition hover:bg-brand-500">
                           Check Rates ↗
                         </a>
+                        {hotel.phone && (
+                          <a href={`tel:${hotel.phone.replace(/[^0-9+]/g, "")}`}
+                            className="flex h-8 items-center justify-center gap-1.5 rounded-xl border border-zinc-700 px-3 text-xs text-zinc-400 transition hover:border-success-500/40 hover:text-success-400">
+                            <Phone className="h-3.5 w-3.5" /> Call
+                          </a>
+                        )}
                       </div>
                     </div>
 
-                    {/* Amenities List */}
+                    {/* Amenities */}
                     {hotel.amenities?.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-800/80 pt-2.5">
-                        {hotel.amenities.map((amenity, i) => (
-                          <span
-                            key={i}
-                            className="rounded-md bg-slate-800/90 border border-slate-700/60 px-2 py-0.5 text-[10px] text-slate-300"
-                          >
-                            ✔ {amenity}
+                      <div className="mt-3 flex flex-wrap gap-1.5 border-t border-zinc-800/60 pt-3">
+                        {hotel.amenities.map((a, i) => (
+                          <span key={i} className="rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] text-zinc-500">
+                            ✓ {a}
                           </span>
                         ))}
                       </div>
@@ -366,4 +248,3 @@ export default function HotelSearchModal({
     </div>
   );
 }
-

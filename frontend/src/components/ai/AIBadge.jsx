@@ -30,3 +30,4 @@ export function AISectionHeader({ title, subtitle, className = "" }) {
     </div>
   );
 }
+
