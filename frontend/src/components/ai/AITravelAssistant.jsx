@@ -31,10 +31,10 @@ export default function AITravelAssistant({ route, embedded = false, onClose }) 
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || embedded) {
       scrollToBottom();
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, embedded]);
 
   const handleSendMessage = async (textToSend) => {
     const query = (textToSend || inputMessage).trim();
