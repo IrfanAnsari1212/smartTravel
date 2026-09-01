@@ -41,6 +41,7 @@ function SmartTravelDashboard() {
   const [isHotelsOpen, setIsHotelsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
+  const [isMapVisible, setIsMapVisible] = useState(true);
   const [activeView, setActiveView] = useState("plan"); // 'plan' | 'trips' | 'offline'
 
   const fileInputRef = useRef(null);
@@ -298,6 +299,8 @@ function SmartTravelDashboard() {
           isOnline={isOnline}
           locationStatus={planner.locationStatus}
           onAuthClick={() => setIsAuthOpen(true)}
+          isMapVisible={isMapVisible}
+          onToggleMap={() => setIsMapVisible((v) => !v)}
         />
 
         {/* Content area: left panel + map + AI panel */}
@@ -331,16 +334,18 @@ function SmartTravelDashboard() {
           </div>
 
           {/* ── Map (fills remaining space) ── */}
-          <div className="relative flex-1 h-full min-w-0 min-h-0">
-            <MapView
-              route={planner.route}
-              isOffline={!isOnline}
-              hasOfflineMap={offline.currentOfflineMapVerification.isVerified}
-              currentLocation={navigation.navigationState.currentLocation}
-              isNavigating={navigation.navigationState.isActive}
-              focusedPlace={planner.focusedSafetyPlace}
-            />
-          </div>
+          {isMapVisible && (
+            <div className="relative flex-1 h-full min-w-0 min-h-0 overflow-hidden isolate z-0">
+              <MapView
+                route={planner.route}
+                isOffline={!isOnline}
+                hasOfflineMap={offline.currentOfflineMapVerification.isVerified}
+                currentLocation={navigation.navigationState.currentLocation}
+                isNavigating={navigation.navigationState.isActive}
+                focusedPlace={planner.focusedSafetyPlace}
+              />
+            </div>
+          )}
 
           {/* ── AI Copilot Panel (right side, slides in) ── */}
           {isAIOpen && (
