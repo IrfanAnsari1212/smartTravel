@@ -72,7 +72,7 @@ body {
 
 /* ─── Leaflet overrides ─── */
 
-.leaflet-container { background: #18181b !important; font-family: var(--font-sans) !important; }
+.leaflet-container { height: 100% !important; width: 100% !important; background: #18181b !important; font-family: var(--font-sans) !important; }
 .leaflet-popup-content-wrapper {
   background: var(--color-surface-900) !important;
   color: #fafafa !important;

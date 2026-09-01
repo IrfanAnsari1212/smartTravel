@@ -3,6 +3,7 @@ import { X, Sparkles, Mail, Lock, ArrowRight, Loader } from "lucide-react";
 
 export default function AuthModal({
   isOpen,
+  onClose,
   authMode,
   setAuthMode,
   authEmail,
@@ -24,8 +25,21 @@ export default function AuthModal({
   // Signed-in state
   if (session?.user) {
     return (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-950 p-8 shadow-2xl animate-fade-up">
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        onClick={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}
+      >
+        <div className="relative w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-950 p-8 shadow-2xl animate-fade-up">
+          {onClose && (
+            <button
+              type="button"
+              aria-label="Close modal"
+              onClick={onClose}
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
           {/* Brand */}
           <div className="mb-6 flex flex-col items-center gap-2 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-900/40">
@@ -53,8 +67,21 @@ export default function AuthModal({
   const isLogin = authMode === "login";
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl animate-fade-up">
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}
+    >
+      <div className="relative w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl animate-fade-up">
+        {onClose && (
+          <button
+            type="button"
+            aria-label="Close modal"
+            onClick={onClose}
+            className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
         {/* Header */}
         <div className="flex flex-col items-center gap-3 border-b border-zinc-800/60 px-8 pb-6 pt-8 text-center">
           <div className="flex items-center gap-2">

@@ -331,7 +331,7 @@ function SmartTravelDashboard() {
           </div>
 
           {/* ── Map (fills remaining space) ── */}
-          <div className="relative flex-1 min-w-0">
+          <div className="relative flex-1 h-full min-w-0 min-h-0">
             <MapView
               route={planner.route}
               isOffline={!isOnline}
@@ -368,6 +368,7 @@ function SmartTravelDashboard() {
       {/* ── Modals ── */}
       <AuthModal
         isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
         authMode={auth.authMode}
         setAuthMode={auth.setAuthMode}
         authEmail={auth.authEmail}

@@ -235,6 +235,25 @@ function CachedTileBadge({ isOffline, hasOfflineMap }) {
   return null;
 }
 
+function ResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    const triggerInvalidate = () => {
+      map.invalidateSize();
+    };
+    triggerInvalidate();
+    const t1 = setTimeout(triggerInvalidate, 200);
+    const t2 = setTimeout(triggerInvalidate, 600);
+    window.addEventListener("resize", triggerInvalidate);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("resize", triggerInvalidate);
+    };
+  }, [map]);
+  return null;
+}
+
 export default function MapView({
   route,
   isOffline,
@@ -273,6 +292,7 @@ export default function MapView({
         zoom={5}
         style={{ height: "100%", width: "100%" }}
       >
+        <ResizeHandler />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <FitBounds
           positions={positions}
