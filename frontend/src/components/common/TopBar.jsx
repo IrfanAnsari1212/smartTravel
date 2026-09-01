@@ -1,13 +1,11 @@
 import { useEffect, useRef } from "react";
-import { Wifi, WifiOff, MapPin, Loader, User, LogIn, Map, EyeOff } from "lucide-react";
+import { Wifi, WifiOff, MapPin, Loader, User, LogIn } from "lucide-react";
 
 export default function TopBar({
   session,
   isOnline,
   locationStatus,
   onAuthClick,
-  isMapVisible = true,
-  onToggleMap,
 }) {
   return (
     <header
@@ -63,24 +61,6 @@ export default function TopBar({
           <div aria-label="Location detected" className="flex items-center gap-1.5 rounded-full bg-success-500/10 px-2.5 py-1 text-xs font-medium text-success-400">
             <MapPin className="h-3 w-3" aria-hidden /> <span className="hidden sm:inline">Located</span>
           </div>
-        )}
-
-        {/* Map Toggle Button */}
-        {onToggleMap && (
-          <button
-            type="button"
-            onClick={onToggleMap}
-            title={isMapVisible ? "Hide Map" : "Show Map"}
-            aria-label={isMapVisible ? "Hide Map" : "Show Map"}
-            className={`flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium transition ${
-              isMapVisible
-                ? "border-brand-500/40 bg-brand-950/40 text-brand-300 hover:bg-brand-950/60"
-                : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-            }`}
-          >
-            {isMapVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Map className="h-3.5 w-3.5" />}
-            <span className="hidden md:inline">{isMapVisible ? "Hide Map" : "Show Map"}</span>
-          </button>
         )}
 
         {/* Auth */}

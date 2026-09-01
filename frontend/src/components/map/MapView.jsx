@@ -286,13 +286,11 @@ export default function MapView({
 
   return (
     <div className="relative h-full w-full overflow-hidden isolate z-0">
-      <CachedTileBadge isOffline={isOffline} hasOfflineMap={hasOfflineMap} />
       <MapContainer
         center={[28.6139, 77.209]}
         zoom={5}
         style={{ height: "100%", width: "100%", position: "relative", zIndex: 0 }}
       >
-        <ResizeHandler />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <FitBounds
           positions={positions}
