@@ -33,6 +33,10 @@ export function useLiveNavigation(route) {
 
   const locationWatchRef = useRef(null);
   const simulationTimerRef = useRef(null);
+  // The GPS watch callback outlives the render that created it, so read the
+  // latest step data through refs instead of stale closure values.
+  const stepsRef = useRef([]);
+  const activeStepIndexRef = useRef(0);
 
   const coordinates = useMemo(() => {
     const raw = route?.geometry?.coordinates || [];
@@ -42,6 +46,11 @@ export function useLiveNavigation(route) {
   const steps = useMemo(() => {
     return route?.steps || [];
   }, [route]);
+
+  useEffect(() => {
+    stepsRef.current = steps;
+    activeStepIndexRef.current = activeStepIndex;
+  }, [steps, activeStepIndex]);
 
   const [prevRouteKey, setPrevRouteKey] = useState(
     route?.tripId || route?.geometry?.coordinates?.[0]?.join(",") || null
@@ -116,12 +125,14 @@ export function useLiveNavigation(route) {
         });
 
         // Advance active step if within 35m of current step waypoint
-        if (steps.length > 0) {
-          const currentStep = steps[activeStepIndex];
+        const liveSteps = stepsRef.current;
+        const liveIndex = activeStepIndexRef.current;
+        if (liveSteps.length > 0) {
+          const currentStep = liveSteps[liveIndex];
           if (currentStep?.location?.length === 2) {
             const stepPoint = { lon: currentStep.location[0], lat: currentStep.location[1] };
             const dist = getDistanceBetweenPoints(userLoc, stepPoint);
-            if (dist !== null && dist < 35 && activeStepIndex < steps.length - 1) {
+            if (dist !== null && dist < 35 && liveIndex < liveSteps.length - 1) {
               setActiveStepIndex((idx) => idx + 1);
             }
           }
@@ -149,7 +160,7 @@ export function useLiveNavigation(route) {
     };
 
     watch(true);
-  }, [activeStepIndex, route, steps, stopTrip]);
+  }, [route, stopTrip]);
 
   // Simulation Controls
   const startSimulation = useCallback(() => {
