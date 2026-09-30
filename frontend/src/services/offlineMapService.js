@@ -1,4 +1,4 @@
-const TILE_CACHE_NAME = "travel-platform-map-tiles-v1";
+const TILE_CACHE_NAME = "travel-platform-map-tiles-v2";
 const STORAGE_KEY = "travel-platform-offline-map-packs-v1";
 const TILE_TEMPLATE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAX_TILE_COUNT = 320;
@@ -195,11 +195,16 @@ export const downloadOfflineMapPack = async (
   let completed = 0;
 
   for (const tile of tiles) {
-    const request = new Request(tile.url, { mode: "no-cors" });
+    // OSM tiles send CORS headers, so a normal cors request lets us detect blocked
+    // (403) or failed tiles instead of silently caching them.
+    const request = new Request(tile.url, { mode: "cors" });
     const cached = await cache.match(request);
 
     if (!cached) {
       const response = await fetch(request);
+      if (!response.ok) {
+        throw new Error(`Map tile download failed (HTTP ${response.status}). Please try again later.`);
+      }
       await cache.put(request, response.clone());
     }
 

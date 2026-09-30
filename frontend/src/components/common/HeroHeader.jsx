@@ -11,7 +11,6 @@ const SUGGESTION_CHIPS = [
 
 export default function HeroHeader({
   locationStatus,
-  locationMessage,
   detectCurrentLocation,
   start,
   onChipSelect,
