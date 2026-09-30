@@ -1,5 +1,5 @@
 const APP_CACHE = "travel-platform-app-v1";
-const TILE_CACHE = "travel-platform-map-tiles-v1";
+const TILE_CACHE = "travel-platform-map-tiles-v2";
 const TILE_HOST = "tile.openstreetmap.org";
 
 self.addEventListener("install", (event) => {
@@ -53,7 +53,10 @@ self.addEventListener("fetch", (event) => {
 
           return fetch(request)
             .then((response) => {
-              cache.put(request, response.clone());
+              // Never cache blocked/error tiles (e.g. 403 "Access blocked").
+              if (response.ok || response.type === "opaque") {
+                cache.put(request, response.clone());
+              }
               return response;
             })
             .catch(() => new Response("", { status: 204 }));

@@ -52,15 +52,15 @@ export default function AuthBar({
           </div>
           <div className="flex-1">
             <label htmlFor={passwordInputId} className="mb-1 block text-xs sm:text-sm font-medium text-slate-300">
-              Password <span className="text-[11px] text-cyan-300 font-normal">(min 12 characters)</span>
+              Password <span className="text-[11px] text-cyan-300 font-normal">{authMode === "login" ? "" : "(exactly 4 characters)"}</span>
             </label>
             <input
               id={passwordInputId}
               type="password"
               required
-              minLength={12}
+              {...(authMode === "login" ? {} : { minLength: 4, maxLength: 4 })}
               autoComplete={authMode === "login" ? "current-password" : "new-password"}
-              placeholder="At least 12 characters"
+              placeholder={authMode === "login" ? "Your password" : "Exactly 4 characters"}
               value={authPassword}
               onChange={(e) => setAuthPassword(e.target.value)}
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 outline-none focus:border-cyan-400 min-h-[44px]"

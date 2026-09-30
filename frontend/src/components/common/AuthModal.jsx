@@ -136,7 +136,7 @@ export default function AuthModal({
               <label htmlFor={passwordId} className="block text-xs font-medium text-zinc-400">
                 Password
               </label>
-              <span className="text-[11px] text-zinc-600">min 12 characters</span>
+              {!isLogin && <span className="text-[11px] text-zinc-600">exactly 4 characters</span>}
             </div>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 pointer-events-none" />
@@ -144,9 +144,9 @@ export default function AuthModal({
                 id={passwordId}
                 type="password"
                 required
-                minLength={12}
+                {...(isLogin ? {} : { minLength: 4, maxLength: 4 })}
                 autoComplete={isLogin ? "current-password" : "new-password"}
-                placeholder="At least 12 characters"
+                placeholder={isLogin ? "Your password" : "Exactly 4 characters"}
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
                 className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"

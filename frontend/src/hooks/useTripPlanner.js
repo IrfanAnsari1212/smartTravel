@@ -136,48 +136,36 @@ export function useTripPlanner(session, isOnline) {
     setLocationStatus("locating");
     setLocationMessage("Acquiring current location...");
 
-    const handleSuccess = async (pos) => {
-      try {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        const place = await reverseGeocodePlace(lat, lon);
-
-        if (place?.displayName) {
-          setStart(place.displayName);
-          setLocationStatus("found");
-          setLocationMessage(`Location acquired: ${place.displayName}`);
-        } else {
-          setStart(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-          setLocationStatus("found");
-          setLocationMessage("Acquired current GPS coordinates.");
-        }
-      } catch {
-        setStart(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-        setLocationStatus("found");
-        setLocationMessage("Acquired current GPS coordinates.");
-      }
-    };
-
-    const handleHighAccuracyError = () => {
-      navigator.geolocation.getCurrentPosition(
-        handleSuccess,
-        (finalErr) => {
-          if (finalErr.code === 1) {
-            setLocationStatus("denied");
-            setLocationMessage("Location permission was denied.");
-          } else {
-            setLocationStatus("error");
-            setLocationMessage("Location unavailable. Please type your origin.");
-          }
-        },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
-      );
-    };
-
     navigator.geolocation.getCurrentPosition(
-      handleSuccess,
-      handleHighAccuracyError,
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+      async (pos) => {
+        try {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const place = await reverseGeocodePlace(lat, lon);
+
+          if (place?.displayName) {
+            setStart(place.displayName);
+            setLocationStatus("found");
+            setLocationMessage(`Location acquired: ${place.displayName}`);
+          } else {
+            setLocationStatus("found");
+            setLocationMessage("Acquired current GPS coordinates.");
+          }
+        } catch {
+          setLocationStatus("error");
+          setLocationMessage("Unable to reverse geocode your coordinates.");
+        }
+      },
+      (err) => {
+        if (err.code === 1) {
+          setLocationStatus("denied");
+          setLocationMessage("Location permission was denied.");
+        } else {
+          setLocationStatus("error");
+          setLocationMessage("Location unavailable or timed out.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
   }, []);
 

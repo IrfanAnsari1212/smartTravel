@@ -96,8 +96,9 @@ export function useLiveNavigation(route) {
       error: "",
     });
 
-    locationWatchRef.current = navigator.geolocation.watchPosition(
-      (position) => {
+    // Desktops/laptops have no GPS: high-accuracy requests time out, which
+    // used to abort the journey. Retry once with low accuracy before failing.
+    const onPosition = (position) => {
         const userLoc = {
           lat: position.coords.latitude,
           lon: position.coords.longitude,
@@ -125,17 +126,29 @@ export function useLiveNavigation(route) {
             }
           }
         }
-      },
-      (error) => {
-        stopTrip("error", error.message || "Unable to access your location.");
-        if (onError) onError(error.message || "Unable to access your location.");
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 2000,
-        timeout: 10000,
-      }
-    );
+    };
+
+    const watch = (highAccuracy) => {
+      locationWatchRef.current = navigator.geolocation.watchPosition(
+        onPosition,
+        (error) => {
+          const recoverable = error.code === 2 || error.code === 3; // unavailable / timeout
+          if (highAccuracy && recoverable) {
+            navigator.geolocation.clearWatch(locationWatchRef.current);
+            watch(false);
+            return;
+          }
+          const message = error.message || "Unable to access your location.";
+          stopTrip("error", message);
+          if (onError) onError(message);
+        },
+        highAccuracy
+          ? { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+          : { enableHighAccuracy: false, maximumAge: 30000, timeout: 30000 }
+      );
+    };
+
+    watch(true);
   }, [activeStepIndex, route, steps, stopTrip]);
 
   // Simulation Controls
