@@ -40,6 +40,10 @@ const trustedOrigins =
     : [...new Set([...allowedOrigins, ...developmentOrigins])];
 
 app.disable("x-powered-by");
+// Render/Vercel sit behind one proxy; trust it so rate limits key on the real client IP.
+if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+  app.set("trust proxy", 1);
+}
 app.use(requestLogger);
 // OSM tile servers reject requests without a Referer (403 "Access blocked"),
 // so override Helmet's default "no-referrer" policy.
@@ -49,26 +53,35 @@ app.use(
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   })
 );
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (
-        !origin ||
-        trustedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app") ||
-        origin.includes("localhost") ||
-        origin.includes("127.0.0.1")
-      ) {
-        callback(null, true);
-        return;
-      }
+const isLocalOrigin = (origin) => {
+  try {
+    return ["localhost", "127.0.0.1"].includes(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+};
 
-      console.warn(`Blocked CORS request from origin: ${origin}`);
-      const error = new Error(`Origin ${origin} not allowed by CORS`);
-      error.statusCode = 403;
-      callback(error);
-    },
-    credentials: true,
+app.use(
+  cors((req, callback) => {
+    const origin = req.get("origin");
+    // Same-origin requests (frontend served by this server) always pass; otherwise
+    // require an exact match on the configured origins, or localhost outside production.
+    const sameOrigin = origin && origin === `${req.protocol}://${req.get("host")}`;
+    const allowed =
+      !origin ||
+      sameOrigin ||
+      trustedOrigins.includes(origin) ||
+      (process.env.NODE_ENV !== "production" && isLocalOrigin(origin));
+
+    if (allowed) {
+      callback(null, { origin: true, credentials: true });
+      return;
+    }
+
+    console.warn(`Blocked CORS request from origin: ${origin}`);
+    const error = new Error(`Origin ${origin} not allowed by CORS`);
+    error.statusCode = 403;
+    callback(error);
   })
 );
 app.use(express.json({ limit: "100kb" }));
@@ -82,6 +95,19 @@ app.use(
     standardHeaders: "draft-8",
     legacyHeaders: false,
     message: { message: "Too many requests. Please try again later." },
+  })
+);
+
+// Brute-force protection: passwords are short, so limit failed sign-in attempts per IP.
+app.use(
+  "/api/auth/login",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    skipSuccessfulRequests: true,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { message: "Too many failed sign-in attempts. Please try again in 15 minutes." },
   })
 );
 
@@ -129,6 +155,17 @@ app.get("/api/ready", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+// These public routes proxy free third-party services (Nominatim, Overpass, weather),
+// so cap them per IP to stop anyone burning through the shared quota.
+const externalApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: process.env.NODE_ENV === "production" ? 40 : 200,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many lookups. Please slow down and try again shortly." },
+});
+app.use(["/api/locations", "/api/hotels", "/api/weather", "/api/emergency/nearby"], externalApiLimiter);
+
 app.use("/api/locations", locationRoutes);
 app.use("/api/trip", tripRoutes);
 app.use("/api/ai", aiRoutes);
