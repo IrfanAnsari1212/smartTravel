@@ -41,7 +41,7 @@ const trustedOrigins =
 
 app.disable("x-powered-by");
 // Render/Vercel sit behind one proxy; trust it so rate limits key on the real client IP.
-if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+if (process.env.NODE_ENV === "production" || process.env.VERCEL || process.env.RENDER) {
   app.set("trust proxy", 1);
 }
 app.use(requestLogger);
@@ -66,7 +66,13 @@ app.use(
     const origin = req.get("origin");
     // Same-origin requests (frontend served by this server) always pass; otherwise
     // require an exact match on the configured origins, or localhost outside production.
-    const sameOrigin = origin && origin === `${req.protocol}://${req.get("host")}`;
+    // Compare hosts only: behind a proxy the protocol Express sees may differ from the browser's.
+    let sameOrigin = false;
+    try {
+      sameOrigin = Boolean(origin) && new URL(origin).host === req.get("host");
+    } catch {
+      sameOrigin = false;
+    }
     const allowed =
       !origin ||
       sameOrigin ||
