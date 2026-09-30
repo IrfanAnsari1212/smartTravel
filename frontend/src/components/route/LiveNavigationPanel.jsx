@@ -61,9 +61,9 @@ export default function LiveNavigationPanel({
         {/* Controls */}
         <div className="flex items-center gap-1.5">
           {!navigationState.isActive ? (
-            <button type="button" onClick={startTrip}
+            <button type="button" onClick={startTrip} title="Start live GPS navigation on this route"
               className="flex h-8 items-center gap-1.5 rounded-xl bg-success-500/20 border border-success-500/30 px-3 text-xs font-medium text-success-400 transition hover:bg-success-500/30">
-              <Play className="h-3.5 w-3.5" /> GPS Trip
+              <Play className="h-3.5 w-3.5" /> Start Journey
             </button>
           ) : (
             <button type="button" onClick={() => stopTrip("idle", "")}
@@ -74,7 +74,7 @@ export default function LiveNavigationPanel({
           {!isSimulating ? (
             <button type="button" onClick={startSimulation}
               className="flex h-8 items-center gap-1.5 rounded-xl border border-brand-500/30 bg-brand-500/10 px-3 text-xs font-medium text-brand-400 transition hover:bg-brand-500/20">
-              <Zap className="h-3.5 w-3.5" /> Simulate
+              <Zap className="h-3.5 w-3.5" /> Demo Drive
             </button>
           ) : (
             <button type="button" onClick={pauseSimulation}

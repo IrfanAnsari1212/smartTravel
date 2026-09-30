@@ -44,6 +44,7 @@ function SmartTravelDashboard() {
   const [activeView, setActiveView] = useState("plan"); // 'plan' | 'trips' | 'offline'
 
   const fileInputRef = useRef(null);
+  const routeDetailsRef = useRef(null);
 
   const auth = useAuthContext();
   const planner = useTripPlanner(auth.session, isOnline);
@@ -93,6 +94,14 @@ function SmartTravelDashboard() {
     window.addEventListener("offline", down);
     return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
   }, []);
+
+  // After a route is planned, scroll the sidebar to the trip details and the Start Journey button
+  const plannedRoute = planner.route;
+  useEffect(() => {
+    if (plannedRoute) {
+      routeDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [plannedRoute]);
 
   // Show auth modal on first load if not logged in, and close it once signed in
   const [prevSession, setPrevSession] = useState(undefined);
@@ -217,7 +226,7 @@ function SmartTravelDashboard() {
 
         {/* Route details (when a trip is planned) */}
         {planner.route && (
-          <div className="space-y-4 border-t border-zinc-800/60 pt-4">
+          <div ref={routeDetailsRef} className="space-y-4 border-t border-zinc-800/60 pt-4 scroll-mt-2">
             <TripSummaryPanel
               route={planner.route}
               start={planner.start}
