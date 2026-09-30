@@ -3,9 +3,18 @@ const jwt = require("jsonwebtoken");
 const { z } = require("zod");
 const User = require("../models/User");
 
-const credentialsSchema = z.object({
-  email: z.string().trim().email("Please enter a valid email address (e.g. name@example.com)").max(254),
-  password: z.string().min(12, "Password must be at least 12 characters long").max(128),
+const emailSchema = z.string().trim().email("Please enter a valid email address (e.g. name@example.com)").max(254);
+
+// New accounts must use a password of exactly 4 characters.
+const registerSchema = z.object({
+  email: emailSchema,
+  password: z.string().length(4, "Password must be exactly 4 characters long"),
+});
+
+// Login accepts any length so accounts created earlier with longer passwords still work.
+const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, "Password is required").max(128),
 });
 
 const createSessionResponse = (user) => ({
@@ -17,7 +26,7 @@ const createSessionResponse = (user) => ({
 
 const register = async (req, res, next) => {
   try {
-    const { email, password } = credentialsSchema.parse(req.body);
+    const { email, password } = registerSchema.parse(req.body);
     const normalizedEmail = email.toLowerCase();
     if (await User.exists({ email: normalizedEmail })) {
       return res.status(409).json({ message: "An account with this email already exists" });
@@ -31,7 +40,7 @@ const register = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = credentialsSchema.parse(req.body);
+    const { email, password } = loginSchema.parse(req.body);
     const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return res.status(401).json({ message: "Invalid email or password" });

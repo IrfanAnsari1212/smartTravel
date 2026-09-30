@@ -41,7 +41,14 @@ const trustedOrigins =
 
 app.disable("x-powered-by");
 app.use(requestLogger);
-app.use(helmet({ contentSecurityPolicy: false }));
+// OSM tile servers reject requests without a Referer (403 "Access blocked"),
+// so override Helmet's default "no-referrer" policy.
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  })
+);
 app.use(
   cors({
     origin(origin, callback) {
