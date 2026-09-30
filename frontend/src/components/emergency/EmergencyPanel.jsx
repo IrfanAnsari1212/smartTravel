@@ -1,4 +1,4 @@
-import { EMERGENCY_SERVICE_CONFIG, buildMapsSearchUrl, formatDistance, normalizeExternalUrl } from "../../utils/formatters";
+import { EMERGENCY_SERVICE_CONFIG, buildMapsSearchUrl, formatDistance } from "../../utils/formatters";
 import { TriangleAlert, MapPin, Phone, Globe, Navigation, ChevronRight } from "lucide-react";
 
 export default function EmergencyPanel({

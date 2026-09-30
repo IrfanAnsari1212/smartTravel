@@ -341,7 +341,6 @@ export function useTripPlanner(session, isOnline) {
   const applyHistoryTrip = useCallback((trip, onApplyCallback) => {
     selectHistoryTrip(trip);
     if (onApplyCallback) onApplyCallback();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadOfflineTripIntoPlanner = (offlineTrip) => {
@@ -359,7 +358,6 @@ export function useTripPlanner(session, isOnline) {
   const openOfflineTrip = useCallback((offlineTrip, onOpenCallback) => {
     loadOfflineTripIntoPlanner(offlineTrip);
     if (onOpenCallback) onOpenCallback();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const recalculateOptimizedRoute = async (customOptions = {}) => {

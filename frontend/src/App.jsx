@@ -94,11 +94,12 @@ function SmartTravelDashboard() {
     return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
   }, []);
 
-  // Show auth modal on first load if not logged in
-  useEffect(() => {
-    if (!auth.session) setIsAuthOpen(true);
-    else setIsAuthOpen(false);
-  }, [auth.session]);
+  // Show auth modal on first load if not logged in, and close it once signed in
+  const [prevSession, setPrevSession] = useState(undefined);
+  if (auth.session !== prevSession) {
+    setPrevSession(auth.session);
+    setIsAuthOpen(!auth.session);
+  }
 
   const handlePlanTripClick = () => planner.planTrip(() => navigation.stopTrip("idle", ""));
   const handleApplyHistoryTrip = (trip) => planner.applyHistoryTrip(trip, () => navigation.stopTrip("idle", ""));
@@ -161,9 +162,9 @@ function SmartTravelDashboard() {
           detectCurrentLocation={planner.detectCurrentLocation}
           start={planner.start}
           session={auth.session}
-          onChipSelect={(prompt) => {
-            setIsAIOpen(true);
+          onChipSelect={() => {
             // The AI panel handles the chip prompt — we just open it
+            setIsAIOpen(true);
           }}
         />
         <RoutePlannerForm

@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import { Wifi, WifiOff, MapPin, Loader, User, LogIn } from "lucide-react";
 
 export default function TopBar({

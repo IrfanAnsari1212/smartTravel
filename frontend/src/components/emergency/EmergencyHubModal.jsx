@@ -83,7 +83,7 @@ export default function EmergencyHubModal({ isOpen, onClose, currentLocation, ro
       return;
     }
     if (navigator.share) {
-      try { await navigator.share({ title: "🚨 My Emergency Location", text, url: mapsUrl }); setShareSuccess("Location shared!"); setTimeout(() => setShareSuccess(""), 4000); return; } catch {}
+      try { await navigator.share({ title: "🚨 My Emergency Location", text, url: mapsUrl }); setShareSuccess("Location shared!"); setTimeout(() => setShareSuccess(""), 4000); return; } catch { /* clipboard unavailable, fall through */ }
     }
     if (navigator.clipboard) { await navigator.clipboard.writeText(text); setShareSuccess("Copied to clipboard!"); setTimeout(() => setShareSuccess(""), 4000); }
   };
